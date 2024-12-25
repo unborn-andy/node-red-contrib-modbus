@@ -205,11 +205,13 @@ module.exports = function (RED) {
       }
       /* istanbul ignore next */
       if (node.isNotReadyForInput()) {
+        console.log("isNotReadyForInput")
         verboseWarn('Inject while node is not ready for input.')
         return
       }
       /* istanbul ignore next */
       if (modbusClient.isInactive()) {
+        console.log("isInactive")
         verboseWarn('You sent an input to inactive client. Please use initial delay on start or send data more slowly.')
         return
       }
