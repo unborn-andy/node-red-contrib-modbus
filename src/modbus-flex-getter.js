@@ -185,19 +185,24 @@ module.exports = function (RED) {
     const messageQueue = []
 
     node.on('input', function (msg) {
+      const origMsgInput = Object.assign({}, msg)
+      
       if (mbBasics.invalidPayloadIn(msg)) {
         /* istanbul ignore next */
         verboseWarn('Invalid message on input.')
+        mbBasics.sendEmptyMsgOnFail(node, new Error('Invalid message on input.'), origMsgInput)
         return
       }
       if (node.isNotReadyForInput()) {
         /* istanbul ignore next */
         verboseWarn('Inject while node is not ready for input.')
+        mbBasics.sendEmptyMsgOnFail(node, new Error('Inject while node is not ready for input'), origMsgInput)
         return
       }
       if (modbusClient.isInactive()) {
         /* istanbul ignore next */
         verboseWarn('You sent an input to inactive client. Please use initial delay on start or send data more slowly.')
+        mbBasics.sendEmptyMsgOnFail(node, new Error('You sent an input to inactive client. Please use initial delay on start or send data more slowly.'), origMsgInput)
         return
       }
 
@@ -211,7 +216,6 @@ module.exports = function (RED) {
         return
       }
       const msg = messageQueue.shift()
-      const origMsgInput = Object.assign({}, msg)
       try {
         const inputMsg = node.prepareMsg(origMsgInput)
         if (node.isValidModbusMsg(inputMsg)) {
