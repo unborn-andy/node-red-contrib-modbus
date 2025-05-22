@@ -186,7 +186,7 @@ module.exports = function (RED) {
 
     node.on('input', function (msg) {
       const origMsgInput = Object.assign({}, msg)
-      
+
       if (mbBasics.invalidPayloadIn(msg)) {
         /* istanbul ignore next */
         verboseWarn('Invalid message on input.')
@@ -216,6 +216,7 @@ module.exports = function (RED) {
         return
       }
       const msg = messageQueue.shift()
+      const origMsgInput = Object.assign({}, msg)
       try {
         const inputMsg = node.prepareMsg(origMsgInput)
         if (node.isValidModbusMsg(inputMsg)) {
