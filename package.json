@@ -53,12 +53,6 @@
   "author": "Klaus Landsdorf <klaus.landsdorf@bianco-royal.de>",
   "license": "BSD-3-Clause",
   "main": "node",
-  "files": [
-    "docs",
-    "examples",
-    "modbus",
-    "extras"
-  ],
   "bugs": {
     "url": "https://github.com/biancoroyal/node-red-contrib-modbus/issues/"
   },
