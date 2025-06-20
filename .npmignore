@@ -10,5 +10,5 @@ Example.png
 *EXAMPLE.png
 *.conf.js
 *.log
-src
+#src
 maps/
