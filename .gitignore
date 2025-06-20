@@ -1,7 +1,7 @@
 code/
 node_modules
 npm-debug.log
-modbus
+#modbus
 node_modules_*/
 docs/icons
 .idea/
