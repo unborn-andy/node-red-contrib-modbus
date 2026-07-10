@@ -905,4 +905,64 @@ describe('Client node Unit Testing', function () {
       })
     })
   })
+
+  describe('Phase 2 — FSM reconnect hardening', function () {
+    it('should clear pending reconnect timer before scheduling new one', function (done) {
+      helper.load(testModbusClientNodes, testFlows.testClientWithoutServerFlow, function () {
+        const node = helper.getNode('3')
+        const clearSpy = sinon.spy(global, 'clearTimeout')
+        node.closingModbus = false
+        node.reconnectOnTimeout = true
+        node.reconnectTimeout = 2000
+        node.reconnectTimeoutId = 42
+        node.stateService.send('NEW')
+        node.stateService.send('INIT')
+        node.stateService.send('CONNECT')
+        node.stateService.send('CLOSE')
+        clearSpy.resetHistory()
+        node.reconnectTimeoutId = 99
+        node.stateService.send('INIT')
+        node.stateService.send('CONNECT')
+        node.stateService.send('CLOSE')
+        sinon.assert.called(clearSpy)
+        clearSpy.restore()
+        done()
+      })
+    })
+
+    it('should not send RECONNECT from closed state when closingModbus is true', function (done) {
+      helper.load(testModbusClientNodes, testFlows.testClientWithoutServerFlow, function () {
+        const node = helper.getNode('3')
+        const sendSpy = sinon.spy(node.stateService, 'send')
+        node.closingModbus = false
+        node.stateService.send('NEW')
+        node.stateService.send('INIT')
+        node.stateService.send('CONNECT')
+        sendSpy.resetHistory()
+        node.closingModbus = true
+        node.stateService.send('CLOSE')
+        sinon.assert.neverCalledWith(sendSpy, 'RECONNECT')
+        sendSpy.restore()
+        done()
+      })
+    })
+
+    it('should send INIT (not ACTIVATE) from broken state when reconnectOnTimeout is false', function (done) {
+      helper.load(testModbusClientNodes, testFlows.testClientWithoutServerFlow, function () {
+        const node = helper.getNode('3')
+        const sendSpy = sinon.spy(node.stateService, 'send')
+        node.reconnectOnTimeout = false
+        node.stateService.send('NEW')
+        node.stateService.send('INIT')
+        node.stateService.send('CONNECT')
+        node.stateService.send('ACTIVATE')
+        sendSpy.resetHistory()
+        node.stateService.send('BREAK')
+        sinon.assert.calledWith(sendSpy, 'INIT')
+        sinon.assert.neverCalledWith(sendSpy, 'ACTIVATE')
+        sendSpy.restore()
+        done()
+      })
+    })
+  })
 })

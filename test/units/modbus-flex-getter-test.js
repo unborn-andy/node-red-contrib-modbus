@@ -127,7 +127,7 @@ describe('Flex Getter node Testing', function () {
 
       getPort().then((port) => {
         flow[1].serverPort = port
-        flow[4].tcpPort = port
+        flow[6].tcpPort = port
 
         helper.load(testFlexGetterNodes, flow, function () {
           const modbusGetter = helper.getNode('bc5a61b6.a3972')
@@ -151,7 +151,7 @@ describe('Flex Getter node Testing', function () {
 
       getPort().then((port) => {
         flow[1].serverPort = port
-        flow[4].tcpPort = port
+        flow[6].tcpPort = port
 
         helper.load(testFlexGetterNodes, flow, function () {
           const modbusGetter = helper.getNode('bc5a61b6.a3972')
@@ -168,7 +168,7 @@ describe('Flex Getter node Testing', function () {
 
       getPort().then((port) => {
         flow[1].serverPort = port
-        flow[4].tcpPort = port
+        flow[6].tcpPort = port
 
         helper.load(testFlexGetterNodes, flow, function () {
           const modbusGetter = helper.getNode('bc5a61b6.a3972')
@@ -185,7 +185,7 @@ describe('Flex Getter node Testing', function () {
 
       getPort().then((port) => {
         flow[1].serverPort = port
-        flow[4].tcpPort = port
+        flow[6].tcpPort = port
 
         helper.load(testFlexGetterNodes, flow, function () {
           const modbusGetter = helper.getNode('bc5a61b6.a3972')
@@ -202,7 +202,7 @@ describe('Flex Getter node Testing', function () {
 
       getPort().then((port) => {
         flow[1].serverPort = port
-        flow[4].tcpPort = port
+        flow[6].tcpPort = port
 
         helper.load(testFlexGetterNodes, flow, function () {
           const modbusClientNode = helper.getNode('92e7bf63.2efd7')
@@ -223,7 +223,7 @@ describe('Flex Getter node Testing', function () {
 
       getPort().then((port) => {
         flow[1].serverPort = port
-        flow[4].tcpPort = port
+        flow[6].tcpPort = port
 
         helper.load(testFlexGetterNodes, flow, function () {
           const modbusClientNode = helper.getNode('92e7bf63.2efd7')
@@ -242,7 +242,7 @@ describe('Flex Getter node Testing', function () {
 
       getPort().then((port) => {
         flow[1].serverPort = port
-        flow[4].tcpPort = port
+        flow[6].tcpPort = port
 
         helper.load(testFlexGetterNodes, flow, function () {
           const modbusFlexGetterNode = helper.getNode('bc5a61b6.a3972')
@@ -260,7 +260,7 @@ describe('Flex Getter node Testing', function () {
 
       getPort().then((port) => {
         flow[1].serverPort = port
-        flow[4].tcpPort = port
+        flow[6].tcpPort = port
 
         helper.load(testFlexGetterNodes, flow, function () {
           const modbusFlexGetterNode = helper.getNode('bc5a61b6.a3972')
@@ -277,7 +277,7 @@ describe('Flex Getter node Testing', function () {
 
       getPort().then((port) => {
         flow[1].serverPort = port
-        flow[4].tcpPort = port
+        flow[6].tcpPort = port
 
         helper.load(testFlexGetterNodes, flow, function () {
           const modbusGetterNode = helper.getNode('bc5a61b6.a3972')
@@ -305,7 +305,7 @@ describe('Flex Getter node Testing', function () {
 
       getPort().then((port) => {
         flow[1].serverPort = port
-        flow[4].tcpPort = port
+        flow[6].tcpPort = port
 
         helper.load(testFlexGetterNodes, flow, function () {
           const n1 = helper.getNode('bc5a61b6.a3972')

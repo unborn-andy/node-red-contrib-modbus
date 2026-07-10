@@ -115,12 +115,13 @@ describe('Flex Sequencer node Testing', function () {
     // })
 
     it('should be not state queueing - not ready to send', function (done) {
-      helper.load(testFlexSequencerNodes, testFlows.testNodeWithServerFlow, function () {
+      const flow = Array.from(testFlows.testNodeWithServerFlow)
+      helper.load(testFlexSequencerNodes, flow, function () {
         const modbusClientNode = helper.getNode('92e7bf63.2efd7')
         setTimeout(() => {
           mBasics.setNodeStatusTo('stopped', modbusClientNode)
           const isReady = modbusClientNode.isReadyToSend(modbusClientNode)
-          isReady.should.be.true()
+          isReady.should.be.false()
           done()
         }, 1500)
       })

@@ -69,6 +69,7 @@ module.exports = function (RED) {
     this.clientTimeout = parseInt(config.clientTimeout) || timeoutTimeMS
     this.reconnectTimeout = parseInt(config.reconnectTimeout) || reconnectTimeMS
     this.reconnectOnTimeout = config.reconnectOnTimeout
+    this.maxQueueDepth = parseInt(config.maxQueueDepth) || 100
 
     if (config.parallelUnitIdsAllowed === undefined) {
       this.parallelUnitIdsAllowed = true
@@ -180,7 +181,6 @@ module.exports = function (RED) {
       }
 
       if (state.matches('init')) {
-        /* istanbul ignore next */
         verboseWarn('fsm init state after ' + node.actualServiceStateBefore.value)
         node.updateServerinfo()
         coreModbusQueue.initQueue(node)
@@ -189,13 +189,15 @@ module.exports = function (RED) {
         try {
           if (node.isFirstInitOfConnection) {
             node.isFirstInitOfConnection = false
-            /* istanbul ignore next */
             verboseWarn('first fsm init in ' + serialConnectionDelayTimeMS + ' ms')
-            setTimeout(node.connectClient, serialConnectionDelayTimeMS)
+            clearTimeout(node.reconnectTimeoutId)
+            node.reconnectTimeoutId = setTimeout(node.connectClient, serialConnectionDelayTimeMS)
           } else {
-            /* istanbul ignore next */
             verboseWarn('fsm init in ' + node.reconnectTimeout + ' ms')
-            setTimeout(node.connectClient, node.reconnectTimeout)
+            clearTimeout(node.reconnectTimeoutId)
+            if (!node.closingModbus) {
+              node.reconnectTimeoutId = setTimeout(node.connectClient, node.reconnectTimeout)
+            }
           }
         } catch (err) {
           /* istanbul ignore next */
@@ -254,14 +256,14 @@ module.exports = function (RED) {
         node.stateService.send('CLOSE')
       }
 
-      /* istanbul ignore next */
       if (state.matches('closed')) {
         node.emit('mbclosed')
-        node.stateService.send('RECONNECT')
+        if (!node.closingModbus) {
+          node.stateService.send('RECONNECT')
+        }
       }
 
       if (state.matches('stopped')) {
-        /* istanbul ignore next */
         verboseWarn('stopped state without reconnecting')
         node.emit('mbclosed')
       }
@@ -274,27 +276,28 @@ module.exports = function (RED) {
       }
 
       if (state.matches('broken')) {
-        /* istanbul ignore next */
         verboseWarn('fsm broken state after ' + node.actualServiceStateBefore.value + logHintText)
         node.emit('mbbroken', 'Modbus Broken On State ' + node.actualServiceStateBefore.value + logHintText)
         if (node.reconnectOnTimeout) {
           node.stateService.send('RECONNECT')
         } else {
-          node.stateService.send('ACTIVATE')
+          node.stateService.send('INIT')
         }
       }
 
       if (state.matches('reconnecting')) {
-        /* istanbul ignore next */
         verboseWarn('fsm reconnect state after ' + node.actualServiceStateBefore.value + logHintText)
         coreModbusQueue.queueSerialLockCommand(node)
         node.emit('mbreconnecting')
         if (node.reconnectTimeout <= 0) {
           node.reconnectTimeout = reconnectTimeMS
         }
-        setTimeout(() => {
+        clearTimeout(node.reconnectTimeoutId)
+        node.reconnectTimeoutId = setTimeout(() => {
           node.reconnectTimeoutId = 0
-          node.stateService.send('INIT')
+          if (!node.closingModbus) {
+            node.stateService.send('INIT')
+          }
         }, node.reconnectTimeout)
       }
     })
@@ -670,6 +673,8 @@ module.exports = function (RED) {
     node.on('close', function (done) {
       const nodeIdentifierName = node.name || node.id
       node.closingModbus = true
+      clearTimeout(node.reconnectTimeoutId)
+      node.reconnectTimeoutId = 0
       verboseLog('stop fsm on close ' + nodeIdentifierName)
       node.stateService.send('STOP')
       verboseLog('close node ' + nodeIdentifierName)
@@ -695,7 +700,6 @@ module.exports = function (RED) {
 
         node.client.removeAllListeners()
       } else {
-        /* istanbul ignore next */
         verboseLog('Connection closed simple ' + nodeIdentifierName)
         done()
       }
@@ -751,7 +755,6 @@ module.exports = function (RED) {
           node.closeConnectionWithoutRegisteredNodes(clientUserNodeId, done)
         }
       } catch (err) {
-        /* istanbul ignore next */
         verboseWarn(err.message + ' on de-register node ' + clientUserNodeId)
         node.error(err)
         done()

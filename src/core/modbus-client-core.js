@@ -8,19 +8,44 @@
 'use strict'
 // SOURCE-MAP-REQUIRED
 
-// eslint-disable-next-line no-var
-var de = de || { biancoroyal: { modbus: { core: { client: {} } } } } // eslint-disable-line no-use-before-define
-de.biancoroyal.modbus.core.client.internalDebug = de.biancoroyal.modbus.core.client.internalDebug || require('debug')('contribModbus:core:client') // eslint-disable-line no-use-before-define
-de.biancoroyal.modbus.core.client.internalDebugFSM = de.biancoroyal.modbus.core.client.internalDebugFSM || require('debug')('contribModbus:core:client:fsm') // eslint-disable-line no-use-before-define
-de.biancoroyal.modbus.core.client.modbusSerialDebug = de.biancoroyal.modbus.core.client.modbusSerialDebug || require('debug')('modbus-serial') // eslint-disable-line no-use-before-define
-de.biancoroyal.modbus.core.client.XStateFSM = de.biancoroyal.modbus.core.client.XStateFSM || require('@xstate/fsm') // eslint-disable-line no-use-before-define
-de.biancoroyal.modbus.core.client.stateLogEnabled = de.biancoroyal.modbus.core.client.stateLogEnabled || false // eslint-disable-line no-use-before-define
+const internalDebug = require('debug')('contribModbus:core:client')
+const internalDebugFSM = require('debug')('contribModbus:core:client:fsm')
+const modbusSerialDebug = require('debug')('modbus-serial')
+const XStateFSM = require('@xstate/fsm')
 
-de.biancoroyal.modbus.core.client.networkErrors = ['ESOCKETTIMEDOUT', 'ETIMEDOUT', 'ECONNRESET', 'ENETRESET',
+const READ_FC_DISPATCH = {
+  1: 'readModbusByFunctionCodeOne',
+  2: 'readModbusByFunctionCodeTwo',
+  3: 'readModbusByFunctionCodeThree',
+  4: 'readModbusByFunctionCodeFour'
+}
+
+const MODBUS_ADDRESS_MIN = 0
+const MODBUS_ADDRESS_MAX = 65535
+const MODBUS_FC_QUANTITY_LIMITS = {
+  1: { min: 1, max: 2000 },
+  2: { min: 1, max: 2000 },
+  3: { min: 1, max: 125 },
+  4: { min: 1, max: 125 },
+  15: { min: 1, max: 1968 },
+  16: { min: 1, max: 123 }
+}
+
+const FORBIDDEN_PAYLOAD_KEYS = ['__proto__', 'constructor', 'prototype']
+
+const coreClient = {}
+
+coreClient.internalDebug = internalDebug
+coreClient.internalDebugFSM = internalDebugFSM
+coreClient.modbusSerialDebug = modbusSerialDebug
+coreClient.XStateFSM = XStateFSM
+coreClient.stateLogEnabled = false
+
+coreClient.networkErrors = ['ESOCKETTIMEDOUT', 'ETIMEDOUT', 'ECONNRESET', 'ENETRESET',
   'ECONNABORTED', 'ECONNREFUSED', 'ENETUNREACH', 'ENOTCONN',
   'ESHUTDOWN', 'EHOSTDOWN', 'ENETDOWN', 'EWOULDBLOCK', 'EAGAIN', 'EHOSTUNREACH']
 
-de.biancoroyal.modbus.core.client.createStateMachineService = function () {
+coreClient.createStateMachineService = function () {
   this.stateLogEnabled = false
 
   return this.XStateFSM.createMachine({
@@ -47,21 +72,43 @@ de.biancoroyal.modbus.core.client.createStateMachineService = function () {
   })
 }
 
-de.biancoroyal.modbus.core.client.getActualUnitId = function (node, msg) {
-  if (msg.payload && Number.isInteger(msg.payload.unitid)) {
+coreClient.getActualUnitId = function (node, msg) {
+  if (msg.payload && Number.isInteger(msg.payload.unitId)) {
+    return parseInt(msg.payload.unitId)
+  } else if (msg.payload && Number.isInteger(msg.payload.unitid)) {
     return parseInt(msg.payload.unitid)
   } else if (Number.isInteger(msg.queueUnitId)) {
     return parseInt(msg.queueUnitId)
   } else {
-    return parseInt(node.unit_id) || 0
+    const unitId = parseInt(node.unit_id)
+    return Number.isInteger(unitId) ? unitId : 0
   }
 }
 
-de.biancoroyal.modbus.core.client.startStateService = function (toggleMachine) {
+coreClient.validateAddressAndQuantity = function (msg, fc, cberr) {
+  if (msg.payload.address !== undefined && msg.payload.address !== null) {
+    const address = parseInt(msg.payload.address, 10)
+    if (!Number.isFinite(address) || address < MODBUS_ADDRESS_MIN || address > MODBUS_ADDRESS_MAX) {
+      cberr(new Error('Modbus address out of range: ' + msg.payload.address), msg)
+      return false
+    }
+  }
+  const limits = MODBUS_FC_QUANTITY_LIMITS[fc]
+  if (limits && msg.payload.quantity !== undefined && msg.payload.quantity !== null) {
+    const quantity = parseInt(msg.payload.quantity, 10)
+    if (!Number.isFinite(quantity) || quantity < limits.min || quantity > limits.max) {
+      cberr(new Error('Modbus quantity out of range for FC' + fc + ': ' + msg.payload.quantity), msg)
+      return false
+    }
+  }
+  return true
+}
+
+coreClient.startStateService = function (toggleMachine) {
   return this.XStateFSM.interpret(toggleMachine).start()
 }
 
-de.biancoroyal.modbus.core.client.checkUnitId = function (unitid, clientType) {
+coreClient.checkUnitId = function (unitid, clientType) {
   if (clientType === 'tcp') {
     return unitid >= 0 && unitid <= 255
   } else {
@@ -69,15 +116,15 @@ de.biancoroyal.modbus.core.client.checkUnitId = function (unitid, clientType) {
   }
 }
 
-de.biancoroyal.modbus.core.client.getLogFunction = function (node) {
+coreClient.getLogFunction = function (node) {
   if (node.internalDebugLog) {
     return node.internalDebugLog
   } else {
-    return de.biancoroyal.modbus.core.client.internalDebug
+    return coreClient.internalDebug
   }
 }
 
-de.biancoroyal.modbus.core.client.activateSendingOnSuccess = function (node, cb, cberr, resp, msg) {
+coreClient.activateSendingOnSuccess = function (node, cb, cberr, resp, msg) {
   node.activateSending(msg).then(function () {
     cb(resp, msg)
   }).catch(function (err) {
@@ -87,7 +134,7 @@ de.biancoroyal.modbus.core.client.activateSendingOnSuccess = function (node, cb,
   })
 }
 
-de.biancoroyal.modbus.core.client.activateSendingOnFailure = function (node, cberr, err, msg) {
+coreClient.activateSendingOnFailure = function (node, cberr, err, msg) {
   node.activateSending(msg).then(function () {
     cberr(err, msg)
   }).catch(function (err) {
@@ -97,8 +144,7 @@ de.biancoroyal.modbus.core.client.activateSendingOnFailure = function (node, cbe
   })
 }
 
-de.biancoroyal.modbus.core.client.readModbusByFunctionCodeOne = function (node, msg, cb, cberr) {
-  const coreClient = de.biancoroyal.modbus.core.client
+coreClient.readModbusByFunctionCodeOne = function (node, msg, cb, cberr) {
   if (msg.payload.enableDeformedMessages) {
     node.client.readCoils_deformedReadEnabled(parseInt(msg.payload.address), parseInt(msg.payload.quantity)).then(function (resp) {
       coreClient.activateSendingOnSuccess(node, cb, cberr, resp, msg)
@@ -116,8 +162,7 @@ de.biancoroyal.modbus.core.client.readModbusByFunctionCodeOne = function (node, 
   }
 }
 
-de.biancoroyal.modbus.core.client.readModbusByFunctionCodeTwo = function (node, msg, cb, cberr) {
-  const coreClient = de.biancoroyal.modbus.core.client
+coreClient.readModbusByFunctionCodeTwo = function (node, msg, cb, cberr) {
   if (msg.payload.enableDeformedMessages) {
     node.client.readDiscreteInputs_deformedReadEnabled(parseInt(msg.payload.address), parseInt(msg.payload.quantity)).then(function (resp) {
       coreClient.activateSendingOnSuccess(node, cb, cberr, resp, msg)
@@ -135,8 +180,7 @@ de.biancoroyal.modbus.core.client.readModbusByFunctionCodeTwo = function (node, 
   }
 }
 
-de.biancoroyal.modbus.core.client.readModbusByFunctionCodeThree = function (node, msg, cb, cberr) {
-  const coreClient = de.biancoroyal.modbus.core.client
+coreClient.readModbusByFunctionCodeThree = function (node, msg, cb, cberr) {
   if (msg.payload.enableDeformedMessages) {
     node.client.readHoldingRegisters_deformedReadEnabled(parseInt(msg.payload.address), parseInt(msg.payload.quantity)).then(function (resp) {
       coreClient.activateSendingOnSuccess(node, cb, cberr, resp, msg)
@@ -154,8 +198,7 @@ de.biancoroyal.modbus.core.client.readModbusByFunctionCodeThree = function (node
   }
 }
 
-de.biancoroyal.modbus.core.client.readModbusByFunctionCodeFour = function (node, msg, cb, cberr) {
-  const coreClient = de.biancoroyal.modbus.core.client
+coreClient.readModbusByFunctionCodeFour = function (node, msg, cb, cberr) {
   if (msg.payload.enableDeformedMessages) {
     node.client.readInputRegisters_deformedReadEnabled(parseInt(msg.payload.address), parseInt(msg.payload.quantity)).then(function (resp) {
       coreClient.activateSendingOnSuccess(node, cb, cberr, resp, msg)
@@ -173,10 +216,7 @@ de.biancoroyal.modbus.core.client.readModbusByFunctionCodeFour = function (node,
   }
 }
 
-de.biancoroyal.modbus.core.client.sendCustomFunctionCode = function (node, msg, cb, cberr) {
-  const coreClient = de.biancoroyal.modbus.core.client
-  // const nodeLog = deb.biancoroyal.modbus.core.client.getLogFunction(node)
-
+coreClient.sendCustomFunctionCode = function (node, msg, cb, cberr) {
   node.client.sendCustomFc(msg.payload.unitid, msg.payload.fc, msg.payload.requestCard, msg.payload.responseCard).then(function (resp) {
     coreClient.activateSendingOnSuccess(node, cb, cberr, resp, msg)
   }).catch(function (err) {
@@ -185,32 +225,26 @@ de.biancoroyal.modbus.core.client.sendCustomFunctionCode = function (node, msg, 
   })
 }
 
-de.biancoroyal.modbus.core.client.readModbusByFunctionCode = function (node, msg, cb, cberr) {
-  const coreClient = de.biancoroyal.modbus.core.client
-  const nodeLog = de.biancoroyal.modbus.core.client.getLogFunction(node)
-  switch (parseInt(msg.payload.fc)) {
-    case 1:
-      coreClient.readModbusByFunctionCodeOne(node, msg, cb, cberr)
-      break
-    case 2:
-      coreClient.readModbusByFunctionCodeTwo(node, msg, cb, cberr)
-      break
-    case 3:
-      coreClient.readModbusByFunctionCodeThree(node, msg, cb, cberr)
-      break
-    case 4:
-      coreClient.readModbusByFunctionCodeFour(node, msg, cb, cberr)
-      break
-    default:
-      coreClient.activateSendingOnFailure(node, cberr, new Error('Function Code Unknown'), msg)
-      nodeLog('Function Code Unknown %s', msg.payload.fc)
-      break
+coreClient.readModbusByFunctionCode = function (node, msg, cb, cberr) {
+  const nodeLog = coreClient.getLogFunction(node)
+  const fc = parseInt(msg.payload.fc)
+
+  if (!coreClient.validateAddressAndQuantity(msg, fc, cberr)) {
+    return
+  }
+
+  const method = READ_FC_DISPATCH[fc]
+
+  if (method) {
+    coreClient[method](node, msg, cb, cberr)
+  } else {
+    coreClient.activateSendingOnFailure(node, cberr, new Error('Function Code Unknown'), msg)
+    nodeLog('Function Code Unknown %s', msg.payload.fc)
   }
 }
 
-de.biancoroyal.modbus.core.client.customModbusMessage = function (node, msg, cb, cberr) {
-  const coreClient = de.biancoroyal.modbus.core.client
-  const nodeLog = de.biancoroyal.modbus.core.client.getLogFunction(node)
+coreClient.customModbusMessage = function (node, msg, cb, cberr) {
+  const nodeLog = coreClient.getLogFunction(node)
   let delayTime = 1
 
   if (!node.client) {
@@ -254,9 +288,8 @@ de.biancoroyal.modbus.core.client.customModbusMessage = function (node, msg, cb,
   }, delayTime)
 }
 
-de.biancoroyal.modbus.core.client.readModbus = function (node, msg, cb, cberr) {
-  const coreClient = de.biancoroyal.modbus.core.client
-  const nodeLog = de.biancoroyal.modbus.core.client.getLogFunction(node)
+coreClient.readModbus = function (node, msg, cb, cberr) {
+  const nodeLog = coreClient.getLogFunction(node)
   let delayTime = 1
 
   if (!node.client) {
@@ -300,13 +333,13 @@ de.biancoroyal.modbus.core.client.readModbus = function (node, msg, cb, cberr) {
   }, delayTime)
 }
 
-de.biancoroyal.modbus.core.client.writeModbusByFunctionCodeFive = function (node, msg, cb, cberr) {
-  const coreClient = de.biancoroyal.modbus.core.client
-  if (msg.payload.value) {
-    msg.payload.value = true
-  } else {
-    msg.payload.value = false
+coreClient.writeModbusByFunctionCodeFive = function (node, msg, cb, cberr) {
+  if (!coreClient.validateAddressAndQuantity(msg, 5, cberr)) {
+    return
   }
+  const rawValue = msg.payload.value
+  msg.payload.value = (rawValue !== 0 && rawValue !== '0' && rawValue !== false &&
+    rawValue !== null && rawValue !== undefined)
   node.client.writeCoil(parseInt(msg.payload.address), msg.payload.value).then(function (resp) {
     coreClient.activateSendingOnSuccess(node, cb, cberr, resp, msg)
   }).catch(function (err) {
@@ -323,8 +356,10 @@ de.biancoroyal.modbus.core.client.writeModbusByFunctionCodeFive = function (node
   })
 }
 
-de.biancoroyal.modbus.core.client.writeModbusByFunctionCodeFifteen = function (node, msg, cb, cberr) {
-  const coreClient = de.biancoroyal.modbus.core.client
+coreClient.writeModbusByFunctionCodeFifteen = function (node, msg, cb, cberr) {
+  if (!coreClient.validateAddressAndQuantity(msg, 15, cberr)) {
+    return
+  }
   if (parseInt(msg.payload.value.length) !== parseInt(msg.payload.quantity)) {
     coreClient.activateSendingOnFailure(node, cberr, new Error('Quantity should be less or equal to coil payload array length: ' +
       msg.payload.value.length + ' Addr: ' + msg.payload.address + ' Q: ' + msg.payload.quantity), msg)
@@ -346,8 +381,10 @@ de.biancoroyal.modbus.core.client.writeModbusByFunctionCodeFifteen = function (n
   }
 }
 
-de.biancoroyal.modbus.core.client.writeModbusByFunctionCodeSix = function (node, msg, cb, cberr) {
-  const coreClient = de.biancoroyal.modbus.core.client
+coreClient.writeModbusByFunctionCodeSix = function (node, msg, cb, cberr) {
+  if (!coreClient.validateAddressAndQuantity(msg, 6, cberr)) {
+    return
+  }
   node.client.writeRegister(parseInt(msg.payload.address), parseInt(msg.payload.value)).then(function (resp) {
     coreClient.activateSendingOnSuccess(node, cb, cberr, resp, msg)
   }).catch(function (err) {
@@ -364,8 +401,10 @@ de.biancoroyal.modbus.core.client.writeModbusByFunctionCodeSix = function (node,
   })
 }
 
-de.biancoroyal.modbus.core.client.writeModbusByFunctionCodeSixteen = function (node, msg, cb, cberr) {
-  const coreClient = de.biancoroyal.modbus.core.client
+coreClient.writeModbusByFunctionCodeSixteen = function (node, msg, cb, cberr) {
+  if (!coreClient.validateAddressAndQuantity(msg, 16, cberr)) {
+    return
+  }
   if (parseInt(msg.payload.value.length) !== parseInt(msg.payload.quantity)) {
     coreClient.activateSendingOnFailure(node, cberr, new Error('Quantity should be less or equal to register payload array length: ' +
       msg.payload.value.length + ' Addr: ' + msg.payload.address + ' Q: ' + msg.payload.quantity), msg)
@@ -381,16 +420,14 @@ de.biancoroyal.modbus.core.client.writeModbusByFunctionCodeSixteen = function (n
         coreClient.activateSendingOnSuccess(node, cb, cberr, resp, msg)
       } else {
         coreClient.activateSendingOnFailure(node, cberr, err, msg)
-        /* istanbul ignore next */
         node.modbusErrorHandling(err)
       }
     })
   }
 }
 
-de.biancoroyal.modbus.core.client.writeModbus = function (node, msg, cb, cberr) {
-  const coreClient = de.biancoroyal.modbus.core.client
-  const nodeLog = de.biancoroyal.modbus.core.client.getLogFunction(node)
+coreClient.writeModbus = function (node, msg, cb, cberr) {
+  const nodeLog = coreClient.getLogFunction(node)
   let delayTime = 1
   if (!node.client) {
     nodeLog('Client Not Ready As Object On Writing Modbus')
@@ -450,14 +487,14 @@ de.biancoroyal.modbus.core.client.writeModbus = function (node, msg, cb, cberr) 
   }, delayTime)
 }
 
-de.biancoroyal.modbus.core.client.setNewTCPNodeSettings = function (node, msg) {
+coreClient.setNewTCPNodeSettings = function (node, msg) {
   node.clienttype = 'tcp'
   node.tcpHost = msg.payload.tcpHost || node.tcpHost
   node.tcpPort = msg.payload.tcpPort || node.tcpPort
   node.tcpType = msg.payload.tcpType || node.tcpType
 }
 
-de.biancoroyal.modbus.core.client.setNewSerialNodeSettings = function (node, msg) {
+coreClient.setNewSerialNodeSettings = function (node, msg) {
   if (msg.payload.serialPort) {
     node.serialPort = msg.payload.serialPort || node.serialPort
   }
@@ -472,7 +509,6 @@ de.biancoroyal.modbus.core.client.setNewSerialNodeSettings = function (node, msg
   node.serialParity = msg.payload.serialParity || node.serialParity
   node.serialType = msg.payload.serialType || node.serialType
 
-  // Make sure is parsed when string, otherwise just assign.
   if (msg.payload.serialAsciiResponseStartDelimiter && typeof msg.payload.serialAsciiResponseStartDelimiter === 'string') {
     node.serialAsciiResponseStartDelimiter = parseInt(msg.payload.serialAsciiResponseStartDelimiter, 16)
   } else {
@@ -484,8 +520,8 @@ de.biancoroyal.modbus.core.client.setNewSerialNodeSettings = function (node, msg
   }
 }
 
-de.biancoroyal.modbus.core.client.setNewNodeOptionalSettings = function (node, msg) {
-  const nodeLog = de.biancoroyal.modbus.core.client.getLogFunction(node)
+coreClient.setNewNodeOptionalSettings = function (node, msg) {
+  const nodeLog = coreClient.getLogFunction(node)
 
   try {
     let unitId = parseInt(msg.payload.unitId)
@@ -510,12 +546,19 @@ de.biancoroyal.modbus.core.client.setNewNodeOptionalSettings = function (node, m
   }
 }
 
-de.biancoroyal.modbus.core.client.setNewNodeSettings = function (node, msg) {
-  const nodeLog = de.biancoroyal.modbus.core.client.getLogFunction(node)
-  const coreClient = de.biancoroyal.modbus.core.client
+coreClient.setNewNodeSettings = function (node, msg) {
+  const nodeLog = coreClient.getLogFunction(node)
 
   if (!msg) {
     nodeLog('New Connection message invalid.')
+    return false
+  }
+
+  const payload = msg.payload || {}
+  if (FORBIDDEN_PAYLOAD_KEYS.some(function (key) {
+    return Object.prototype.hasOwnProperty.call(payload, key)
+  })) {
+    nodeLog('Rejected payload with forbidden prototype keys')
     return false
   }
 
@@ -539,6 +582,6 @@ de.biancoroyal.modbus.core.client.setNewNodeSettings = function (node, msg) {
   return true
 }
 
-de.biancoroyal.modbus.core.client.messageAllowedStates = ['activated', 'queueing', 'sending', 'empty', 'connected']
+coreClient.messageAllowedStates = ['activated', 'queueing', 'sending', 'empty', 'connected']
 
-module.exports = de.biancoroyal.modbus.core.client
+module.exports = coreClient

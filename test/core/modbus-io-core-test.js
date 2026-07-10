@@ -306,6 +306,19 @@ describe('Core IO Testing', function () {
         done()
       })
 
+      it('should catch and log error when getValueFromBufferByDataType throws (Task 4.7)', () => {
+        // 2-byte buffer + 32-bit read at offset 0: readInt32BE(0) needs 4 bytes → throws RangeError
+        const valueNames = [{ dataType: 'Integer', bits: '32', registerAddress: 0 }]
+        const register = [0, 1] // length 2 → isRegisterSizeWrong(register,0,32) passes
+        const responseBuffer = { buffer: Buffer.from([0x01, 0x02]) } // only 2 bytes; readInt32BE(0) throws
+        const internalDebugSpy = sinon.spy(coreIOUnderTest, 'internalDebug')
+
+        coreIOUnderTest.convertValuesByType(valueNames, register, responseBuffer, false)
+
+        expect(internalDebugSpy.calledOnce).to.equal(true)
+        internalDebugSpy.restore()
+      })
+
       it('should handle non-Buffer responseBuffer gracefully', () => {
         const valueNames = [{ dataType: 'int16', registerAddress: 0, bits: 16 }]
         const register = [0]

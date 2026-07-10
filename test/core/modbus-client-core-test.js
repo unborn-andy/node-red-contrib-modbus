@@ -188,6 +188,34 @@ describe('Core Client Testing', function () {
   })
 
   describe('writeModbusByFunctionCodeSixteen', () => {
+    it('should call modbusErrorHandling when writeRegisters rejects and getID is non-zero (Task 4.7)', function (done) {
+      const node = {
+        client: {
+          writeRegisters: sinon.stub().rejects(new Error('write error')),
+          getID: sinon.stub().returns(1)
+        },
+        modbusErrorHandling: sinon.spy()
+      }
+      const activateSendingOnFailureStub = sinon.stub(coreClientUnderTest, 'activateSendingOnFailure')
+      const msg = {
+        payload: {
+          address: '0',
+          value: [1, 2, 3],
+          quantity: 3
+        }
+      }
+      const cb = sinon.spy()
+      const cberr = sinon.spy()
+
+      coreClientUnderTest.writeModbusByFunctionCodeSixteen(node, msg, cb, cberr)
+      setTimeout(function () {
+        sinon.assert.calledOnce(node.modbusErrorHandling)
+        sinon.assert.calledOnce(activateSendingOnFailureStub)
+        activateSendingOnFailureStub.restore()
+        done()
+      }, 50)
+    })
+
     it('should call activateSendingOnSuccess with parsed address and value when getID returns 0', function () {
       const node = {
         client: {
@@ -1116,15 +1144,22 @@ describe('Core Client Testing', function () {
       }
       const cb = sinon.stub()
       const cberr = sinon.stub()
+      const origFifteen = coreClientUnderTest.writeModbusByFunctionCodeFifteen
+      const origFailure = coreClientUnderTest.activateSendingOnFailure
+      const origLogFn = coreClientUnderTest.getLogFunction
       coreClientUnderTest.writeModbusByFunctionCodeFifteen = sinon.stub()
       coreClientUnderTest.activateSendingOnFailure = sinon.stub()
       const mockNodeLog = sinon.stub()
       coreClientUnderTest.getLogFunction = sinon.stub().returns(mockNodeLog)
       coreClientUnderTest.writeModbus(node, msg, cb, cberr)
-      sinon.assert.notCalled(coreClientUnderTest.activateSendingOnFailure)
-      sinon.assert.notCalled(mockNodeLog)
-
-      done()
+      setTimeout(function () {
+        sinon.assert.notCalled(coreClientUnderTest.activateSendingOnFailure)
+        sinon.assert.notCalled(mockNodeLog)
+        coreClientUnderTest.writeModbusByFunctionCodeFifteen = origFifteen
+        coreClientUnderTest.activateSendingOnFailure = origFailure
+        coreClientUnderTest.getLogFunction = origLogFn
+        done()
+      }, 20)
     })
     it('should call activateSendingOnFailure and nodeLog on error', function (done) {
       const node = {
@@ -1155,6 +1190,9 @@ describe('Core Client Testing', function () {
       const cb = sinon.stub()
       const cberr = sinon.stub()
 
+      const origFive = coreClientUnderTest.writeModbusByFunctionCodeFive
+      const origFailure = coreClientUnderTest.activateSendingOnFailure
+      const origLogFn = coreClientUnderTest.getLogFunction
       coreClientUnderTest.writeModbusByFunctionCodeFive = sinon.stub().throws(new Error('Test Error'))
       coreClientUnderTest.activateSendingOnFailure = sinon.stub()
       const mockNodeLog = sinon.stub()
@@ -1162,7 +1200,12 @@ describe('Core Client Testing', function () {
 
       coreClientUnderTest.writeModbus(node, msg, cb, cberr)
 
-      done()
+      setTimeout(function () {
+        coreClientUnderTest.writeModbusByFunctionCodeFive = origFive
+        coreClientUnderTest.activateSendingOnFailure = origFailure
+        coreClientUnderTest.getLogFunction = origLogFn
+        done()
+      }, 20)
     })
   })
   describe('setNewSerialNodeSettings', function () {
@@ -1214,5 +1257,130 @@ describe('Core Client Testing', function () {
     coreClientUnderTest.readModbus(node, msg, cb, cberr)
     sinon.assert.calledWith(coreClientUnderTest.activateSendingOnFailure, node, cberr, sinon.match.instanceOf(Error), msg)
     coreClientUnderTest.activateSendingOnFailure.restore()
+  })
+
+  describe('Phase 3 — Spec validation and API', function () {
+    let sandbox
+    const writeFiveImpl = coreClientUnderTest.writeModbusByFunctionCodeFive
+    const validateImpl = coreClientUnderTest.validateAddressAndQuantity
+
+    beforeEach(function () {
+      sandbox = sinon.createSandbox()
+    })
+
+    afterEach(function () {
+      sandbox.restore()
+    })
+
+    it('should call cberr when address is 70000 (out of range)', function () {
+      const msg = { payload: { fc: 3, address: 70000, quantity: 1 } }
+      const cberr = sinon.spy()
+      validateImpl(msg, 3, cberr)
+      sinon.assert.calledOnce(cberr)
+      sinon.assert.match(cberr.firstCall.args[0].message, /address out of range/)
+    })
+
+    it('should call cberr when address is -1', function () {
+      const msg = { payload: { fc: 1, address: -1, quantity: 1 } }
+      const cberr = sinon.spy()
+      validateImpl(msg, 1, cberr)
+      sinon.assert.calledOnce(cberr)
+    })
+
+    it('should call cberr when FC3 quantity is 200 (exceeds 125)', function () {
+      const msg = { payload: { fc: 3, address: 0, quantity: 200 } }
+      const cberr = sinon.spy()
+      validateImpl(msg, 3, cberr)
+      sinon.assert.calledOnce(cberr)
+      sinon.assert.match(cberr.firstCall.args[0].message, /quantity out of range/)
+    })
+
+    it('should call cberr when FC1 quantity is 0', function () {
+      const msg = { payload: { fc: 1, address: 0, quantity: 0 } }
+      const cberr = sinon.spy()
+      validateImpl(msg, 1, cberr)
+      sinon.assert.calledOnce(cberr)
+    })
+
+    it('should call cberr when FC1 quantity is 2001', function () {
+      const msg = { payload: { fc: 1, address: 0, quantity: 2001 } }
+      const cberr = sinon.spy()
+      validateImpl(msg, 1, cberr)
+      sinon.assert.calledOnce(cberr)
+    })
+
+    it('should call cberr when FC16 quantity is 0', function () {
+      const msg = { payload: { fc: 16, address: 0, quantity: 0, value: [] } }
+      const cberr = sinon.spy()
+      validateImpl(msg, 16, cberr)
+      sinon.assert.calledOnce(cberr)
+    })
+
+    it('should coerce non-boolean truthy value to true for FC5', function (done) {
+      const node = {
+        client: { writeCoil: sandbox.stub().resolves({}) },
+        activateSending: sandbox.stub().resolves(),
+        modbusErrorHandling: sandbox.stub(),
+        stateService: { send: sandbox.stub() }
+      }
+      const msg = { payload: { fc: 5, address: 0, value: 1 } }
+      writeFiveImpl(node, msg, sinon.spy(), sinon.spy())
+      sinon.assert.calledWith(node.client.writeCoil, 0, true)
+      done()
+    })
+
+    it('should coerce 0 to false for FC5', function (done) {
+      const node = {
+        client: { writeCoil: sandbox.stub().resolves({}) },
+        activateSending: sandbox.stub().resolves(),
+        modbusErrorHandling: sandbox.stub(),
+        stateService: { send: sandbox.stub() }
+      }
+      const msg = { payload: { fc: 5, address: 0, value: 0 } }
+      writeFiveImpl(node, msg, sinon.spy(), sinon.spy())
+      sinon.assert.calledWith(node.client.writeCoil, 0, false)
+      done()
+    })
+
+    it('should coerce "0" string to false for FC5', function (done) {
+      const node = {
+        client: { writeCoil: sandbox.stub().resolves({}) },
+        activateSending: sandbox.stub().resolves(),
+        modbusErrorHandling: sandbox.stub(),
+        stateService: { send: sandbox.stub() }
+      }
+      const msg = { payload: { fc: 5, address: 0, value: '0' } }
+      writeFiveImpl(node, msg, sinon.spy(), sinon.spy())
+      sinon.assert.calledWith(node.client.writeCoil, 0, false)
+      done()
+    })
+
+    it('should ignore __proto__ in dynamic reconnect payload', function () {
+      const node = { clienttype: 'tcp', tcpHost: '127.0.0.1', tcpPort: 502, tcpType: 'DEFAULT', unit_id: 1, checkUnitId: sinon.stub().returns(true) }
+      const payload = { connectorType: 'TCP' }
+      Object.defineProperty(payload, '__proto__', { value: { polluted: true }, enumerable: true })
+      const msg = { payload }
+      const result = coreClientUnderTest.setNewNodeSettings(node, msg)
+      expect(result).to.equal(false)
+    })
+
+    it('should ignore constructor in dynamic reconnect payload', function () {
+      const node = { clienttype: 'tcp', tcpHost: '127.0.0.1', tcpPort: 502, tcpType: 'DEFAULT', unit_id: 1, checkUnitId: sinon.stub().returns(true) }
+      const msg = { payload: { connectorType: 'TCP', constructor: {} } }
+      const result = coreClientUnderTest.setNewNodeSettings(node, msg)
+      expect(result).to.equal(false)
+    })
+
+    it('should resolve unitId from msg.payload.unitId when integer', function () {
+      const node = { unit_id: 5 }
+      const msg = { payload: { unitId: 0 } }
+      expect(coreClientUnderTest.getActualUnitId(node, msg)).to.equal(0)
+    })
+
+    it('should prefer unitId over unitid when both present', function () {
+      const node = { unit_id: 5 }
+      const msg = { payload: { unitId: 2, unitid: 7 } }
+      expect(coreClientUnderTest.getActualUnitId(node, msg)).to.equal(2)
+    })
   })
 })

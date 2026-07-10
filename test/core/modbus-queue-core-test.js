@@ -140,4 +140,83 @@ describe('Core IO Testing', function () {
         done()
       })
   })
+
+  describe('Task 4.7 — Istanbul marker reduction (catch/reject in pushToQueueByUnitId)', function () {
+    before(function () {
+      if (coreQueueUnderTest.getUnitIdToQueue && coreQueueUnderTest.getUnitIdToQueue.restore) {
+        coreQueueUnderTest.getUnitIdToQueue.restore()
+      }
+      if (coreQueueUnderTest.isValidUnitId && coreQueueUnderTest.isValidUnitId.restore) {
+        coreQueueUnderTest.isValidUnitId.restore()
+      }
+    })
+
+    it('should reject with the thrown error when queueLog throws inside pushToQueueByUnitId', function (done) {
+      const unitId = 1
+      const node = {
+        bufferCommandList: new Map([[unitId, []]]),
+        sendingAllowed: new Map([[unitId, true]]),
+        unitSendingAllowed: [],
+        name: 'testNode',
+        parallelUnitIdsAllowed: true,
+        clienttype: 'tcp',
+        maxQueueDepth: 100,
+        queueLog: sinon.stub().throws(new Error('queueLog failure'))
+      }
+      const msg = { payload: { unitid: unitId } }
+
+      coreQueueUnderTest.pushToQueueByUnitId(node, sinon.spy(), msg, sinon.spy(), sinon.spy())
+        .catch(function (err) {
+          expect(err.message).to.equal('queueLog failure')
+          done()
+        })
+    })
+  })
+
+  describe('Phase 3 — Queue depth cap', function () {
+    it('should reject message via cberr when queue depth exceeds maxQueueDepth', function (done) {
+      const unitId = 1
+      const node = {
+        bufferCommandList: new Map([[unitId, [{}, {}]]]),
+        sendingAllowed: new Map([[unitId, true]]),
+        unitSendingAllowed: [],
+        name: 'testNode',
+        parallelUnitIdsAllowed: false,
+        clienttype: 'tcp',
+        maxQueueDepth: 2,
+        queueLog: sinon.stub()
+      }
+      const msg = { payload: { unitid: unitId } }
+      const cberr = sinon.spy()
+
+      coreQueueUnderTest.pushToQueueByUnitId(node, sinon.spy(), msg, sinon.spy(), cberr)
+        .then(function () { done(new Error('expected reject')) })
+        .catch(function (err) {
+          expect(err.message).to.match(/Queue full/)
+          done()
+        })
+    })
+
+    it('should not duplicate unitId entries in unitSendingAllowed', function (done) {
+      const unitId = 3
+      const node = {
+        bufferCommandList: new Map([[unitId, []]]),
+        sendingAllowed: new Map([[unitId, true]]),
+        unitSendingAllowed: [unitId],
+        name: 'testNode',
+        parallelUnitIdsAllowed: false,
+        clienttype: 'tcp',
+        maxQueueDepth: 100,
+        queueLog: sinon.stub()
+      }
+      const msg = { payload: { unitid: unitId } }
+
+      coreQueueUnderTest.pushToQueueByUnitId(node, sinon.spy(), msg, sinon.spy(), sinon.spy())
+        .then(function () {
+          expect(node.unitSendingAllowed.filter(function (id) { return id === unitId }).length).to.equal(1)
+          done()
+        })
+        .catch(done)
+    })
+  })
 })

@@ -9,15 +9,18 @@
 'use strict'
 // SOURCE-MAP-REQUIRED
 
-// eslint-disable-next-line no-var
-var de = de || { biancoroyal: { modbus: { io: { core: {} } } } } // eslint-disable-line no-use-before-define
-de.biancoroyal.modbus.io.core.internalDebug = de.biancoroyal.modbus.io.core.internalDebug || require('debug')('contribModbus:io:core') // eslint-disable-line no-use-before-define
-de.biancoroyal.modbus.io.core.LineByLineReader = de.biancoroyal.modbus.io.core.LineByLineReader || require('line-by-line') // eslint-disable-line no-use-before-define
-de.biancoroyal.modbus.io.core.core = de.biancoroyal.modbus.io.core.core || require('./modbus-core') // eslint-disable-line no-use-before-define
+const internalDebug = require('debug')('contribModbus:io:core')
+const LineByLineReader = require('line-by-line')
+const coreModule = require('./modbus-core')
 
-de.biancoroyal.modbus.io.core.nameValuesFromIOFile = function (node, msg, values, response, readingOffset) {
+const ioCore = {}
+
+ioCore.internalDebug = internalDebug
+ioCore.LineByLineReader = LineByLineReader
+ioCore.core = coreModule
+
+ioCore.nameValuesFromIOFile = function (node, msg, values, response, readingOffset) {
   let valueNames = []
-  const ioCore = de.biancoroyal.modbus.io.core
 
   if (node.ioFile && node.ioFile.configData) {
     node.ioFile.configData.forEach(function (mapping) {
@@ -36,9 +39,8 @@ de.biancoroyal.modbus.io.core.nameValuesFromIOFile = function (node, msg, values
   return ioCore.convertValuesByType(valueNames, values, response, node.logIOActivities)
 }
 
-de.biancoroyal.modbus.io.core.allValueNamesFromIOFile = function (ioNode) {
+ioCore.allValueNamesFromIOFile = function (ioNode) {
   const valueNames = []
-  const ioCore = de.biancoroyal.modbus.io.core
 
   if (ioNode && ioNode.configData) {
     ioNode.configData.forEach(function (mapping) {
@@ -55,7 +57,7 @@ de.biancoroyal.modbus.io.core.allValueNamesFromIOFile = function (ioNode) {
   return valueNames
 }
 
-de.biancoroyal.modbus.io.core.getDataTypeFromFirstCharType = function (type) {
+ioCore.getDataTypeFromFirstCharType = function (type) {
   switch (type) {
     case 'w':
       return 'Word'
@@ -76,8 +78,7 @@ de.biancoroyal.modbus.io.core.getDataTypeFromFirstCharType = function (type) {
   }
 }
 
-de.biancoroyal.modbus.io.core.buildInputAddressMapping = function (registerName, mapping, offset, readingOffset, logging) {
-  const ioCore = de.biancoroyal.modbus.io.core
+ioCore.buildInputAddressMapping = function (registerName, mapping, offset, readingOffset, logging) {
   let addressStart = 0
   let coilStart = 0
   let addressOffset = 0
@@ -161,8 +162,7 @@ de.biancoroyal.modbus.io.core.buildInputAddressMapping = function (registerName,
   return { name: mapping.name, type, mapping, error: 'variable name does not match input mapping' }
 }
 
-de.biancoroyal.modbus.io.core.buildOutputAddressMapping = function (registerName, mapping, offset, readingOffset, logging) {
-  const ioCore = de.biancoroyal.modbus.io.core
+ioCore.buildOutputAddressMapping = function (registerName, mapping, offset, readingOffset, logging) {
   let addressStart = 0
   let coilStart = 0
   let addressOffset = 0
@@ -246,9 +246,7 @@ de.biancoroyal.modbus.io.core.buildOutputAddressMapping = function (registerName
   return { name: mapping.name, type, mapping, error: 'variable name does not match output mapping' }
 }
 
-de.biancoroyal.modbus.io.core.insertValues = function (valueNames, register, logging) {
-  const ioCore = de.biancoroyal.modbus.io.core
-
+ioCore.insertValues = function (valueNames, register, logging) {
   let index = 0
   for (index in valueNames) {
     const item = valueNames[index]
@@ -260,7 +258,7 @@ de.biancoroyal.modbus.io.core.insertValues = function (valueNames, register, log
       continue
     }
 
-    if (de.biancoroyal.modbus.io.core.isRegisterSizeWrong(register, item.registerAddress, Number(item.bits))) {
+    if (ioCore.isRegisterSizeWrong(register, item.registerAddress, Number(item.bits))) {
       if (logging) {
         ioCore.internalDebug('Insert Value Register Reached At Address-Start-IO:' + item.registerAddress + ' Bits:' + Number(item.bits))
       }
@@ -300,8 +298,7 @@ de.biancoroyal.modbus.io.core.insertValues = function (valueNames, register, log
   return valueNames
 }
 
-de.biancoroyal.modbus.io.core.getValueFromBufferByDataType = function (item, bufferOffset, responseBuffer, logging) {
-  const ioCore = de.biancoroyal.modbus.io.core
+ioCore.getValueFromBufferByDataType = function (item, bufferOffset, responseBuffer, logging) {
   const registerLength = responseBuffer.length / 2
 
   if (bufferOffset < 0 || bufferOffset > responseBuffer.length) {
@@ -380,8 +377,7 @@ de.biancoroyal.modbus.io.core.getValueFromBufferByDataType = function (item, buf
   return item
 }
 
-de.biancoroyal.modbus.io.core.convertValuesByType = function (valueNames, register, responseBuffer, logging) {
-  const ioCore = de.biancoroyal.modbus.io.core
+ioCore.convertValuesByType = function (valueNames, register, responseBuffer, logging) {
   let bufferOffset = 0
   const sixteenBitBufferLength = 2
 
@@ -396,7 +392,7 @@ de.biancoroyal.modbus.io.core.convertValuesByType = function (valueNames, regist
       continue
     }
 
-    if (de.biancoroyal.modbus.io.core.isRegisterSizeWrong(register, item.registerAddress, Number(item.bits))) {
+    if (ioCore.isRegisterSizeWrong(register, item.registerAddress, Number(item.bits))) {
       if (logging) {
         ioCore.internalDebug('Insert Value Register Reached At Address-Start-IO:' + item.registerAddress + ' Bits:' + Number(item.bits))
       }
@@ -408,7 +404,6 @@ de.biancoroyal.modbus.io.core.convertValuesByType = function (valueNames, regist
       try {
         item = ioCore.getValueFromBufferByDataType(item, bufferOffset, responseBuffer.buffer, logging)
       } catch (err) {
-        /* istanbul ignore next */
         ioCore.internalDebug(err.message)
       }
     } else {
@@ -422,12 +417,11 @@ de.biancoroyal.modbus.io.core.convertValuesByType = function (valueNames, regist
   return valueNames
 }
 
-de.biancoroyal.modbus.io.core.filterValueNames = function (node, valueNames, fc, adr, quantity) {
+ioCore.filterValueNames = function (node, valueNames, fc, adr, quantity) {
   if (!valueNames.length || !valueNames.filter) {
     return valueNames
   }
 
-  const ioCore = de.biancoroyal.modbus.io.core
   let functionType = 'input'
 
   if (fc === 2 || fc === 4) {
@@ -449,7 +443,7 @@ de.biancoroyal.modbus.io.core.filterValueNames = function (node, valueNames, fc,
   })
 }
 
-de.biancoroyal.modbus.io.core.isRegisterSizeWrong = function (register, start, bits) {
+ioCore.isRegisterSizeWrong = function (register, start, bits) {
   const sizeDivisor = Number(bits) || 16
   const startRegister = Number(start)
   let endRegister = startRegister
@@ -461,7 +455,7 @@ de.biancoroyal.modbus.io.core.isRegisterSizeWrong = function (register, start, b
   return (startRegister < 0 || register.length < startRegister || endRegister > register.length)
 }
 
-de.biancoroyal.modbus.io.core.buildMessageWithIO = function (node, values, response, msg) {
+ioCore.buildMessageWithIO = function (node, values, response, msg) {
   const origMsg = this.core.getOriginalMessage(node.bufferMessageList, msg)
   origMsg.modbusRequest = Object.assign({}, msg.payload)
   origMsg.payload = values
@@ -495,4 +489,4 @@ de.biancoroyal.modbus.io.core.buildMessageWithIO = function (node, values, respo
   }
 }
 
-module.exports = de.biancoroyal.modbus.io.core
+module.exports = ioCore
