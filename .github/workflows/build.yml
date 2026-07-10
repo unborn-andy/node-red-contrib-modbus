@@ -16,14 +16,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node: [20, 22, 24]
+        node: [22, 24]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
       - run: npm install
-      - run: npm test
+      - run: npm run test:ci
       - run: npm run build
       - run: tar -czvf distrib-${{ matrix.node }}.tar.gz modbus examples extras package.json docs index.js README.md CHANGELOG.md
       - uses: actions/upload-artifact@v4
@@ -41,7 +41,7 @@ jobs:
         with:
           node-version: 20
       - run: npm install
-      - run: npm test
+      - run: npm run test:ci
       - uses: JS-DevTools/npm-publish@v1
         with:
           token: ${{ secrets.NPM_TOKEN }}
