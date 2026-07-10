@@ -22,7 +22,7 @@ const helper = require('node-red-node-test-helper')
 helper.init(require.resolve('node-red'))
 
 const testFlows = require('./flows/modbus-client-flows')
-const { getPort } = require('../helper/test-helper-extensions')
+const { getPort, useFakeTimers } = require('../helper/test-helper-extensions')
 
 describe('Client node Unit Testing', function () {
   before(function (done) {
@@ -45,101 +45,7 @@ describe('Client node Unit Testing', function () {
     })
   })
   // describe('client node is Active', function () {
-  //   it('should be active when it receives a message', function (done) {
-  //     const flow = Array.from(testFlows.testModbusReadNodeIsActive)
 
-  //     getPort().then((port) => {
-  //       flow[1].serverPort = port
-  //       flow[5].tcpPort = port
-
-  //       helper.load(testModbusClientNodes, flow, function () {
-  //         const modbusClientNode = helper.getNode('80aeec4c.0cb9e8')
-  //         modbusClientNode.on('mbactive', function (msg) {
-  //           const isActive = modbusClientNode.isActive()
-  //           isActive.should.be.true()
-  //           done()
-  //         })
-  //       })
-  //     })
-  //   })
-  //   it('should be state queueing - ready to send', function (done) {
-  //     const flow = Array.from(testFlows.testModbusReadNodeIsActive)
-  //     getPort().then((port) => {
-  //       flow[1].serverPort = port
-  //       flow[5].tcpPort = port
-
-  //       helper.load(testModbusClientNodes, flow, function () {
-  //         const modbusReadNode = helper.getNode('0d3a652b67ca73ac')
-  //         const modbusClientNode = helper.getNode('80aeec4c.0cb9e8')
-  //         const h1 = helper.getNode('h1')
-
-  //         // be ready to receive the msg from the reader
-  //         h1.on('input', function (msg) {
-  //           msg.should.have.property('payload', [false,
-  //             false,
-  //             false,
-  //             false,
-  //             false,
-  //             false,
-  //             false,
-  //             false,
-  //             false,
-  //             false,
-  //             false,
-  //             false,
-  //             false,
-  //             false,
-  //             false,
-  //             false])
-  //           mBasics.setNodeStatusTo('queueing', modbusClientNode)
-  //           const isReady = modbusClientNode.isReadyToSend(modbusClientNode)
-  //           isReady.should.be.true()
-  //           done()
-  //         })
-
-  //         // if the client gets the state to be active
-  //         modbusClientNode.on('mbactive', function (msg) {
-  //           // send a msg to the reader
-  //           modbusReadNode.emit('input', msg)
-  //         })
-  //       })
-  //     })
-  //   })
-
-  //   it('should work with simple read on local server', function (done) {
-  //     const flow = Array.from(testFlows.testModbusReadNodeIsActive)
-  //     getPort().then((port) => {
-  //       flow[1].serverPort = port
-  //       flow[5].tcpPort = port
-  //       helper.load(testModbusClientNodes, flow, function () {
-  //         const h1 = helper.getNode('959c417207ae06ba')
-  //         let counter = 0
-  //         h1.on('input', function () {
-  //           counter++
-  //           if (counter === 1) {
-  //             done()
-  //           }
-  //         })
-  //       })
-  //     })
-  //   })
-  //   it('should be active when it receives a message', function (done) {
-  //     const flow = Array.from(testFlows.testModbusReadNodeIsActive)
-
-  //     getPort().then((port) => {
-  //       flow[1].serverPort = port
-  //       flow[5].tcpPort = port
-
-  //       helper.load(testModbusClientNodes, flow, function () {
-  //         const modbusClientNode = helper.getNode('80aeec4c.0cb9e8')
-  //         modbusClientNode.on('mbactive', function (msg) {
-  //           const isActive = modbusClientNode.isActive()
-  //           isActive.should.be.true()
-  //           done()
-  //         })
-  //       })
-  //     })
-  //   })
   // })
 
   describe('Node', function () {
@@ -440,25 +346,15 @@ describe('Client node Unit Testing', function () {
       helper.load(testModbusClientNodes, testFlows.testShouldBeTcpDefaultFlow, function () {
         const modbusReadNode = helper.getNode('115bd58ae573c942')
         modbusReadNode.should.have.property('name', 'ModbusClientTCPDefault')
-        setTimeout(done, 800)
+        done()
       })
     })
-
-    // it('should be loaded with wrong TCP', function (done) {
-    //   helper.load(testModbusClientNodes, testFlows.testShouldBeWrongTcpFlow, function () {
-    //     const modbusReadNode = helper.getNode('384fb9f1.e96296')
-    //     const modbusClientNode = helper.getNode('466860d5.3f6358')
-    //     modbusReadNode.should.have.property('name', '')
-    //     modbusClientNode.should.have.property('name', 'ModbusClientTCPDefault')
-    //     setTimeout(done, 800)
-    //   })
-    // })
 
     it('should be loaded with TCP TELNET', function (done) {
       helper.load(testModbusClientNodes, testFlows.testShouldBeTcpTelnetFlow, function () {
         const modbusReadNode = helper.getNode('466860d5.3f6359')
         modbusReadNode.should.have.property('name', 'ModbusClientTCPTelnet')
-        setTimeout(done, 800)
+        done()
       })
     })
 
@@ -466,7 +362,7 @@ describe('Client node Unit Testing', function () {
       helper.load(testModbusClientNodes, testFlows.testShouldBeTcpRtuBufferedFlow, function () {
         const modbusReadNode = helper.getNode('466860d5.3f6360')
         modbusReadNode.should.have.property('name', 'ModbusClientTCPRTUB')
-        setTimeout(done, 800)
+        done()
       })
     })
 
@@ -474,7 +370,7 @@ describe('Client node Unit Testing', function () {
       helper.load(testModbusClientNodes, testFlows.testShouldBeTcpC701Flow, function () {
         const modbusReadNode = helper.getNode('466860d5.3f6361')
         modbusReadNode.should.have.property('name', 'ModbusClientTCPC701')
-        setTimeout(done, 800)
+        done()
       })
     })
 
@@ -482,7 +378,7 @@ describe('Client node Unit Testing', function () {
       helper.load(testModbusClientNodes, testFlows.testShouldBeSerialRtuBufferedFlow, function () {
         const modbusReadNode = helper.getNode('466860d5.3f6362')
         modbusReadNode.should.have.property('name', 'ModbusClientSerialRTUB')
-        setTimeout(done, 800)
+        done()
       })
     })
 
@@ -490,7 +386,7 @@ describe('Client node Unit Testing', function () {
       helper.load(testModbusClientNodes, testFlows.testShouldBeSerialRtuFlow, function () {
         const modbusReadNode = helper.getNode('466860d5.3f6363')
         modbusReadNode.should.have.property('name', 'ModbusClientSerialRTU')
-        setTimeout(done, 800)
+        done()
       })
     })
 
@@ -498,7 +394,7 @@ describe('Client node Unit Testing', function () {
       helper.load(testModbusClientNodes, testFlows.testShouldBeSerialAsciiFlow, function () {
         const modbusReadNode = helper.getNode('466860d5.3f6364')
         modbusReadNode.should.have.property('name', 'ModbusClientSerialASCII')
-        setTimeout(done, 800)
+        done()
       })
     })
 
@@ -506,7 +402,7 @@ describe('Client node Unit Testing', function () {
       helper.load(testModbusClientNodes, testFlows.testShouldBeSerialAsciiFlow, function () {
         const modbusClientNode = helper.getNode('466860d5.3f6364')
         modbusClientNode.should.have.property('messageAllowedStates', coreModbusClient.messageAllowedStates)
-        setTimeout(done, 800)
+        done()
       })
     })
 
@@ -982,7 +878,7 @@ describe('Client node Unit Testing', function () {
 
     it('should send INIT after reconnecting timeout elapses', function (done) {
       loadClient(done, function (node, done) {
-        const clock = sinon.useFakeTimers()
+        const clock = useFakeTimers(sinon)
         const sendSpy = sinon.spy(node.stateService, 'send')
         node.closingModbus = false
         node.reconnectOnTimeout = true
@@ -999,7 +895,7 @@ describe('Client node Unit Testing', function () {
 
     it('should not send INIT from reconnecting when closingModbus is true', function (done) {
       loadClient(done, function (node, done) {
-        const clock = sinon.useFakeTimers()
+        const clock = useFakeTimers(sinon)
         const sendSpy = sinon.spy(node.stateService, 'send')
         node.closingModbus = false
         node.reconnectTimeout = 2000

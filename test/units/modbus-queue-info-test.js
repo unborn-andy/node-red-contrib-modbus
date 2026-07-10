@@ -200,23 +200,6 @@ describe('Queue Info node Testing', function () {
     })
 
     // TO BE FIXED
-    // it('should call checkQueueStates and setNodeStatusByActivity in readFromQueue', function (done) {
-    //   helper.load(testQueueInfoNodes, testFlows.testbufferCommandsTrue, async () => {
-    //     const modbusQueueInfoNode = helper.getNode('1b72b5d207427b00')
-    //     const modbusClient = helper.getNode('d4c76ff5.c424b8')
-    //     modbusQueueInfoNode.updateStatusRunning = false
-    //     modbusClient.bufferCommands = true
-    //     modbusClient.bufferCommandList.set(modbusClient.unit, [])
-    //     modbusClient.bufferCommandList.get = function () {
-    //       throw new Error('Simulated error')
-    //     }
-    //     await modbusQueueInfoNode.readFromQueue()
-    //     setTimeout(function () {
-    //       expect(modbusQueueInfoNode.updateStatusRunning).to.equal(false)
-    //       done()
-    //     }, 1500)
-    //   })
-    // })
 
     it('should set updateStatusRunning to false and throw error when an error occurs', function (done) {
       helper.load(testQueueInfoNodes, testFlows.testToThrowError, function () {
@@ -310,19 +293,6 @@ describe('Queue Info node Testing', function () {
       })
     })
 
-    // it('simple flow with old reset inject should be loaded', function (done) {
-    //   helper.load(testQueueInfoNodes, testFlows.testOldResetInjectShouldBeLoadedFlow, function () {
-    //     const h1 = helper.getNode('h1')
-    //     h1.on('input', function () {
-    //       done()
-    //     })
-    //     const queueNode = helper.getNode('5fffb0bc.0b8a5')
-    //     queueNode.receive({ payload: '', resetQueue: true })
-    //   }, function () {
-    //     helper.log('function callback')
-    //   })
-    // })
-
     it('simple flow with new reset inject should be loaded', function (done) {
       helper.load(testQueueInfoNodes, testFlows.testNewResetInjectShouldBeLoadedFlow, function () {
         const h1 = helper.getNode('h1')
@@ -333,21 +303,6 @@ describe('Queue Info node Testing', function () {
         queueNode.receive({ payload: { resetQueue: true } })
       })
     })
-
-    // it('simple flow with inject and polling read should be loaded', function (done) {
-    //   helper.load(testQueueInfoNodes, testFlows.testInjectAndPollingShouldBeLoadedFlow, function () {
-    //     const h1 = helper.getNode('h1')
-    //     let countMsg = 0
-    //     h1.on('input', function () {
-    //       countMsg++
-    //       if (countMsg === 16) {
-    //         done()
-    //       }
-    //     })
-    //     const queueNode = helper.getNode('5fffb0bc.0b8a5')
-    //     queueNode.receive({ payload: '', resetQueue: true })
-    //   })
-    // })
 
     it('simple flow with reset function for queue', function (done) {
       helper.load(testQueueInfoNodes, testFlows.testResetFunctionQueueFlow, function () {

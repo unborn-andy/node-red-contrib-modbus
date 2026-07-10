@@ -68,58 +68,6 @@ describe('Read node Testing', function () {
       })
     })
 
-    // it('simple Node should send message with empty topic', function (done) {
-    //   helper.load(testReadNodes, testFlows.testReadMsgFlow, function () {
-    //     const h1 = helper.getNode('h1')
-    //     let counter = 0
-    //     h1.on('input', function (msg) {
-    //       counter++
-    //       if (counter === 1 && msg.topic === 'polling') {
-    //         done()
-    //       }
-    //     })
-    //   })
-    // })
-
-    // it('simple Node should send message with own topic', function (done) {
-    //   helper.load(testReadNodes, testFlows.testReadMsgMyTopicFlow, function () {
-    //     const h1 = helper.getNode('h1')
-    //     let counter = 0
-    //     h1.on('input', function (msg) {
-    //       counter++
-    //       if (counter === 1 && msg.topic === 'myTopic') {
-    //         done()
-    //       }
-    //     })
-    //   })
-    // })
-
-    // it('simple Node should send message with IO', function (done) {
-    //   helper.load(testReadNodes, testFlows.testReadWithClientIoFlow, function () {
-    //     const h1 = helper.getNode('h1')
-    //     let countMsg = 0
-    //     h1.on('input', function () {
-    //       countMsg++
-    //       if (countMsg === 4) {
-    //         done()
-    //       }
-    //     })
-    //   })
-    // })
-
-    // it('simple Node should send message with IO and sending IO-objects as payload', function (done) {
-    //   helper.load(testReadNodes, testFlows.testReadWithClientIoPayloadFlow, function () {
-    //     const h1 = helper.getNode('h1')
-    //     let countMsg = 0
-    //     h1.on('input', function () {
-    //       countMsg++
-    //       if (countMsg === 4) {
-    //         done()
-    //       }
-    //     })
-    //   })
-    // })
-
     it('should be state queueing - ready to send', function (done) {
       helper.load(testReadNodes, testFlows.testReadWithoutClientFlow, function () {
         const modbusReadNode = helper.getNode('8ecaae3e.4b8928')

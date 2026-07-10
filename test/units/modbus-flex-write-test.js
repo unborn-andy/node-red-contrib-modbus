@@ -23,7 +23,7 @@ const expect = require('chai').expect
 const testFlows = require('./flows/modbus-flex-write-flows')
 const mBasics = require('../../src/modbus-basics')
 const _ = require('underscore')
-const { getPort } = require('../helper/test-helper-extensions')
+const { getPort, deferAfterLoad } = require('../helper/test-helper-extensions')
 
 const testWriteParametersNodes = [catchNode, injectNode, functionNode, clientNode, serverNode, nodeUnderTest]
 
@@ -155,15 +155,6 @@ describe('Flex Write node Testing', function () {
       })
     })
 
-    // it('simple flow with inject and write should be loaded', function (done) {
-    //   helper.load(testWriteParametersNodes, testFlows.testInjectAndWriteShouldBeLoadedFlow, function () {
-    //     const h1 = helper.getNode('h1')
-    //     h1.on('input', function () {
-    //       done()
-    //     })
-    //   })
-    // })
-
     it('simple flow with wrong inject should not crash', function (done) {
       const flow = Array.from(testFlows.testWriteParametersFlow)
 
@@ -177,10 +168,9 @@ describe('Flex Write node Testing', function () {
             throw Error('Should Not Get A Message On Wrong Input To Flex Writer')
           })
           const flexWriter = helper.getNode('82fe7fe4.7b7bc8')
-          setTimeout(function () {
+          deferAfterLoad(function () {
             flexWriter.receive({})
-          }, 800)
-          setTimeout(done, 1200)
+          }, done)
         })
       })
     })
@@ -198,10 +188,9 @@ describe('Flex Write node Testing', function () {
             throw Error('Should Not Get A Message On Wrong Input To Flex Writer')
           })
           const flexWriter = helper.getNode('82fe7fe4.7b7bc8')
-          setTimeout(function () {
+          deferAfterLoad(function () {
             flexWriter.receive({ payload: '{ "value": true, "fc": 1, "unitid": 1,"address": 0, "quantity": 1 }' })
-          }, 800)
-          setTimeout(done, 1200)
+          }, done)
         })
       })
     })
@@ -219,10 +208,9 @@ describe('Flex Write node Testing', function () {
             throw Error('Should Not Get A Message On Wrong Input To Flex Writer')
           })
           const flexWriter = helper.getNode('82fe7fe4.7b7bc8')
-          setTimeout(function () {
+          deferAfterLoad(function () {
             flexWriter.receive({ payload: '{ "value": true, "fc": 5, "unitid": 1,"address": -1, "quantity": 1 }' })
-          }, 800)
-          setTimeout(done, 1200)
+          }, done)
         })
       })
     })
@@ -240,101 +228,12 @@ describe('Flex Write node Testing', function () {
             throw Error('Should Not Get A Message On Wrong Input To Flex Writer')
           })
           const flexWriter = helper.getNode('82fe7fe4.7b7bc8')
-          setTimeout(function () {
+          deferAfterLoad(function () {
             flexWriter.receive({ payload: '{ "value": true, "fc": 5, "unitid": 1,"address": 1, "quantity": -1 }' })
-          }, 800)
-          setTimeout(done, 1200)
+          }, done)
         })
       })
     })
-
-    // it('simple flow with string input from http should be parsed and written', function (done) {
-    //   const flow = Array.from(testFlows.testWriteParametersFlow)
-
-    //   getPort().then((port) => {
-    //     flow[3].serverPort = port
-    //     flow[7].tcpPort = port
-
-    //     helper.load(testWriteParametersNodes, flow, function () {
-    //       const h1 = helper.getNode('h1')
-    //       h1.on('input', function () {
-    //         if (flexWriter.bufferMessageList.size === 0) {
-    //           done()
-    //         }
-    //       })
-    //       const flexWriter = helper.getNode('82fe7fe4.7b7bc8')
-    //       setTimeout(function () {
-    //         flexWriter.receive({ payload: '{ "value": true, "fc": 5, "unitid": 1,"address": 0, "quantity": 1 }' })
-    //       }, 800)
-    //     })
-    //   })
-    // })
-
-    // it('simple flow with string with array of values input from http should be parsed and written', function (done) {
-    //   const flow = Array.from(testFlows.testWriteParametersFlow)
-
-    //   getPort().then((port) => {
-    //     flow[3].serverPort = port
-    //     flow[7].tcpPort = port
-
-    //     helper.load(testWriteParametersNodes, flow, function () {
-    //       const h1 = helper.getNode('h1')
-    //       h1.on('input', function () {
-    //         if (flexWriter.bufferMessageList.size === 0) {
-    //           done()
-    //         }
-    //       })
-    //       const flexWriter = helper.getNode('82fe7fe4.7b7bc8')
-    //       setTimeout(function () {
-    //         flexWriter.receive({ payload: '{ "value": [0,1,0,1], "fc": 5, "unitid": 1,"address": 0, "quantity": 4 }' })
-    //       }, 800)
-    //     })
-    //   })
-    // })
-
-    // it('simple flow with string value true input from http should be parsed and written', function (done) {
-    //   const flow = Array.from(testFlows.testWriteParametersFlow)
-
-    //   getPort().then((port) => {
-    //     flow[3].serverPort = port
-    //     flow[7].tcpPort = port
-
-    //     helper.load(testWriteParametersNodes, flow, function () {
-    //       const flexWriter = helper.getNode('82fe7fe4.7b7bc8')
-    //       const h1 = helper.getNode('h1')
-    //       h1.on('input', function () {
-    //         if (flexWriter.bufferMessageList.size === 0) {
-    //           done()
-    //         }
-    //       })
-    //       setTimeout(function () {
-    //         flexWriter.receive({ payload: { value: 'true', fc: 5, unitid: 1, address: 0, quantity: 1 } })
-    //       }, 800)
-    //     })
-    //   })
-    // })
-
-    // it('simple flow with string value false input from http should be parsed and written', function (done) {
-    //   const flow = Array.from(testFlows.testWriteParametersFlow)
-
-    //   getPort().then((port) => {
-    //     flow[3].serverPort = port
-    //     flow[7].tcpPort = port
-
-    //     helper.load(testWriteParametersNodes, flow, function () {
-    //       const h1 = helper.getNode('h1')
-    //       h1.on('input', function () {
-    //         if (flexWriter.bufferMessageList.size === 0) {
-    //           done()
-    //         }
-    //       })
-    //       const flexWriter = helper.getNode('82fe7fe4.7b7bc8')
-    //       setTimeout(function () {
-    //         flexWriter.receive({ payload: { value: 'false', fc: 5, unitid: 1, address: 0, quantity: 1 } })
-    //       }, 800)
-    //     })
-    //   })
-    // })
 
     it('should be inactive if message not allowed', function (done) {
       const flow = Array.from(testFlows.testWriteParametersFlow)

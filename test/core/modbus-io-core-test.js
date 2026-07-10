@@ -331,8 +331,6 @@ describe('Core IO Testing', function () {
         expect(internalDebugSpy.calledWith('Response Buffer Is Not A Buffer')).to.equal(false)
 
         internalDebugSpy.restore()
-        expect(internalDebugSpy.calledWith('Response Buffer Is Not A Buffer')).to.equal(false)
-        internalDebugSpy.restore()
       })
 
       it('should set item.value correctly for dataType "Integer" and bits "32"', (done) => {
@@ -360,6 +358,16 @@ describe('Core IO Testing', function () {
         const item = { dataType: 'Integer', bits: '64', registerAddress: 0 }
         const result = coreIOUnderTest.getValueFromBufferByDataType(item, 0, buffer, false)
         expect(result.value).to.equal(18446744073709552000)
+        done()
+      })
+
+      it('should set item.value correctly for dataType "Integer" and bits "64" at non-zero register offset', (done) => {
+        const buffer = Buffer.alloc(12)
+        buffer.writeUInt32BE(0, 4)
+        buffer.writeUInt32BE(5, 8)
+        const item = { dataType: 'Integer', bits: '64', registerAddress: 2 }
+        const result = coreIOUnderTest.getValueFromBufferByDataType(item, 4, buffer, false)
+        expect(result.value).to.equal(5)
         done()
       })
 

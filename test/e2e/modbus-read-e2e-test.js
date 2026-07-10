@@ -7,6 +7,7 @@ const serverNode = require('../../src/modbus-server.js')
 // const mbIOCore = require('../../src/core/modbus-io-core.js')
 // const EventEmitter = require('events').EventEmitter
 const sinon = require('sinon')
+const { useFakeTimers } = require('../helper/test-helper-extensions')
 const mbBasics = require('../../src/modbus-basics.js')
 const testReadNodes = [clientNode, serverNode, nodeUnderTest]
 const expect = require('chai').expect
@@ -70,7 +71,7 @@ describe('ModbusRead node', () => {
     helper.load(testReadNodes, testFlow.testFlowForDelayOnStart, async () => {
       const readNode = helper.getNode('7ae5c3a814b3c02b')
 
-      const clock = sinon.useFakeTimers()
+      const clock = useFakeTimers(sinon)
 
       readNode.initializeReadingTimer()
 

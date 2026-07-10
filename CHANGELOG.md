@@ -3,6 +3,8 @@
 
 ### Bug Fixes
 
+* **modbus-io-config:** reject directory paths and harden close handler (EISDIR)
+* **modbus-io-core:** fix 64-bit Integer buffer offset for registerAddress > 0
 * add a new error handler for clients that are processed by jsmodbus ([6ff1f03](https://github.com/biancoroyal/node-red-contrib-modbus/commit/6ff1f03bbc954cd77d1691d3b994a29b7726588f))
 * faulty removal of input message ([9e0a1ea](https://github.com/biancoroyal/node-red-contrib-modbus/commit/9e0a1ea7b20ff71c2dda2e5f55d3baaf018170f3))
 
@@ -11,6 +13,7 @@
 
 * Adapt the modbus-queue to make it possible to evict messages ([b8bfe12](https://github.com/biancoroyal/node-red-contrib-modbus/commit/b8bfe125c71a8a14241c916765992b74c2262767))
 * change the logic of processNextMessage() ([78a7219](https://github.com/biancoroyal/node-red-contrib-modbus/commit/78a7219d21a06a03efd09d8005cb58dd3d417f2f))
+* repo quality and FSM hardening for v5.46.0 ([362785b](https://github.com/biancoroyal/node-red-contrib-modbus/commit/362785b9f542ba74fec4978469cf3c9a32de43fc))
 * The client can now remove messages from the queue ([876322b](https://github.com/biancoroyal/node-red-contrib-modbus/commit/876322bdbba11ff648b7d7a760c30e713a5780c5))
 
 

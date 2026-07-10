@@ -2,6 +2,7 @@
 
 const coreClient = require('../../src/core/modbus-client-core')
 const sinon = require('sinon')
+const { useFakeTimers } = require('../helper/test-helper-extensions')
 
 async function flushPromises () {
   await new Promise(resolve => setImmediate(resolve))
@@ -78,7 +79,7 @@ describe('Core Client Coverage Uplift', function () {
   })
 
   it('should delay readModbus when port is not readable and connect succeeds', function () {
-    const clock = sandbox.useFakeTimers()
+    const clock = useFakeTimers(sandbox)
     const readStub = sandbox.stub(coreClient, 'readModbusByFunctionCode')
     const node = {
       client: {
@@ -100,7 +101,7 @@ describe('Core Client Coverage Uplift', function () {
   })
 
   it('should delay writeModbus when port is not writable and connect succeeds', function () {
-    const clock = sandbox.useFakeTimers()
+    const clock = useFakeTimers(sandbox)
     const writeStub = sandbox.stub(coreClient, 'writeModbusByFunctionCodeSix')
     const node = {
       client: {
@@ -152,7 +153,7 @@ describe('Core Client Coverage Uplift', function () {
   })
 
   it('should call readModbusByFunctionCode for FC3 via readModbus serial delay path', function () {
-    const clock = sandbox.useFakeTimers()
+    const clock = useFakeTimers(sandbox)
     const readStub = sandbox.stub(coreClient, 'readModbusByFunctionCode')
     const node = {
       client: {

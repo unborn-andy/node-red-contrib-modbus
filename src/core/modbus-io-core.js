@@ -338,8 +338,8 @@ ioCore.getValueFromBufferByDataType = function (item, bufferOffset, responseBuff
           item.value = responseBuffer.readInt32BE(bufferOffset)
           break
         case '64':
-          lowBits = responseBuffer.readUInt32BE(4)
-          highBits = responseBuffer.readUInt32BE(0)
+          highBits = responseBuffer.readUInt32BE(bufferOffset)
+          lowBits = responseBuffer.readUInt32BE(bufferOffset + 4)
           item.value = highBits * 2 ** 32 + lowBits
           break
         default:
@@ -348,13 +348,13 @@ ioCore.getValueFromBufferByDataType = function (item, bufferOffset, responseBuff
       break
     case 'Real':
     case 'Float':
-      item.value = responseBuffer.readFloatBE(bufferOffset, 4)
+      item.value = responseBuffer.readFloatBE(bufferOffset)
       break
     case 'Double':
-      item.value = responseBuffer.readDoubleBE(bufferOffset, 8)
+      item.value = responseBuffer.readDoubleBE(bufferOffset)
       break
     case 'Long':
-      item.value = responseBuffer.readDoubleBE(bufferOffset, 10)
+      item.value = responseBuffer.readDoubleBE(bufferOffset)
       break
     default:
       switch (item.bits) {
