@@ -50,17 +50,6 @@ describe('Flex Sequencer node Testing', function () {
   })
 
   describe('Node', function () {
-    // it('simple Node should be loaded without client config', function (done) {
-    //   helper.load(testFlexSequencerNodes,testFlows.testNodeWithoutClientFlow , function () {
-    //     const modbusFlexSequencer = helper.getNode('bc5a61b6.a3972')
-    //     modbusFlexSequencer.should.have.property('name', 'modbusFlexSequencer')
-
-    //     done()
-    //   }, function () {
-    //     helper.log('function callback')
-    //   })
-    // })
-
     it('simple Node with server should be loaded', function (done) {
       helper.load(testFlexSequencerNodes, testFlows.testNodeWithServerFlow, function () {
         const modbusServer = helper.getNode('996023fe.ea04b')
@@ -102,25 +91,14 @@ describe('Flex Sequencer node Testing', function () {
       })
     })
 
-    // it('should be state queueing - ready to send', function (done) {
-    //   helper.load(testFlexSequencerNodes, testFlows.testNodeWithServerFlow, function () {
-    //     const modbusClientNode = helper.getNode('92e7bf63.2efd7')
-    //     setTimeout(() => {
-    //       mBasics.setNodeStatusTo('queueing', modbusClientNode)
-    //       const isReady = modbusClientNode.isReadyToSend(modbusClientNode)
-    //       isReady.should.be.true()
-    //       done()
-    //     }, 1500)
-    //   })
-    // })
-
     it('should be not state queueing - not ready to send', function (done) {
-      helper.load(testFlexSequencerNodes, testFlows.testNodeWithServerFlow, function () {
+      const flow = Array.from(testFlows.testNodeWithServerFlow)
+      helper.load(testFlexSequencerNodes, flow, function () {
         const modbusClientNode = helper.getNode('92e7bf63.2efd7')
         setTimeout(() => {
           mBasics.setNodeStatusTo('stopped', modbusClientNode)
           const isReady = modbusClientNode.isReadyToSend(modbusClientNode)
-          isReady.should.be.true()
+          isReady.should.be.false()
           done()
         }, 1500)
       })
@@ -283,35 +261,6 @@ describe('Flex Sequencer node Testing', function () {
         done()
       })
     })
-
-    // it('should handle invalid payload', function (done) {
-    //   helper.load(testFlexSequencerNodes, testFlows.testNodeWithInjectNodeFlow, function () {
-    //     const flexSequencerNode = helper.getNode('42c7ed2cf52e284e')
-    //     const invalidMsg = null
-
-    //     flexSequencerNode.receive(invalidMsg)
-
-    //     setTimeout(() => {
-    //       helper.log().calledWith('Invalid message on input.').should.be.true()
-    //       done()
-    //     }, 100)
-    //   })
-    // })
-
-    // it('should handle not ready for input', function (done) {
-    //   helper.load(testFlexSequencerNodes, testFlows.testNodeWithInjectNodeFlow, function () {
-    //     const flexSequencerNode = helper.getNode('42c7ed2cf52e284e')
-    //     flexSequencerNode.delayOccured = false
-    //     const validMsg = { payload: { sequences: [] } }
-
-    //     flexSequencerNode.receive(validMsg)
-
-    //     setTimeout(() => {
-    //       helper.log().calledWith('Inject while node is not ready for input.').should.be.true()
-    //       done()
-    //     }, 100)
-    //   })
-    // })
 
     it('should reset the input delay timer, log a warning, and set a timeout when delayOnStart is true', async function () {
       //   await helper.load(testFlexSequencerNodes, testFlows.testNodeWithInjectNodeFlow)

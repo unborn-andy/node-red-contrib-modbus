@@ -48,27 +48,6 @@ describe('Flex Sequencer node Testing', function () {
   })
 
   describe('Node', function () {
-    // it('should handle error in input message processing', function () {
-    //   helper.load(testFlexSequencerNodes, testFlows.testNodeResponseFromServer, () => {
-    //     const flexSequencerNode = helper.getNode('bae63bd33cee1ff2')
-    //     console.log(flexSequencerNode)
-    //     const origMsgInput = { sequences: [{ fc: 'FC1', unitid: '1', address: '10', quantity: '2' }] }
-    //     // const error = new Error('Error processing input message')
-
-    //     // flexSequencerNode.isValidModbusMsg = function () {
-    //     //   throw error
-    //     // }
-
-    //     flexSequencerNode.emit('input', origMsgInput)
-
-    //     //   expect(flexSequencerNode.errorProtocolMsg).toHaveBeenCalledTimes(1)
-    //     //   expect(flexSequencerNode.errorProtocolMsg).toHaveBeenCalledWith(error, origMsgInput)
-
-    //   //   expect(mbBasics.sendEmptyMsgOnFail).toHaveBeenCalledTimes(1)
-    //   //   expect(mbBasics.sendEmptyMsgOnFail).toHaveBeenCalledWith(flexSequencerNode, error, origMsgInput)
-    //   })
-    // })
-
     it('should process valid sequences', function (done) {
       helper.load(testFlexSequencerNodes, testFlows.testNodeWithValidSequence, () => {
         const flexSequencerNode = helper.getNode('607b91b18be2a9ee')

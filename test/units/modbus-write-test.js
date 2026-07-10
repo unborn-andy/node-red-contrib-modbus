@@ -49,25 +49,6 @@ describe('Write node Testing', function () {
   })
   describe('Unique Port', function () {
 
-    // it('simple flow with string true http inject and write should be loaded and write done', function (done) {
-    //   const flow = Array.from(testFlows.testSimpleWriteFlow)
-    //   getPort().then((port) => {
-    //     flow[1].serverPort = port
-    //     flow[4].tcpPort = port
-    //     helper.load(testSimpleWriteParametersNodes, testFlows.testSimpleWriteFlow, function () {
-    //       const modbusWrite = helper.getNode('258dc103f99d2f2e')
-    //       setTimeout(function () {
-    //         modbusWrite.receive({ payload: { value: 'true', fc: 5, unitid: 1, address: 0, quantity: 1 } })
-    //       }, 800)
-
-    //       modbusWrite.on('modbusWriteNodeDone', () => {
-    //         if (modbusWrite.bufferMessageList.size === 0) {
-    //           done()
-    //         }
-    //       })
-    //     })
-    //   })
-    // })
   })
 
   describe('Node', function () {

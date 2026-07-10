@@ -36,6 +36,9 @@ module.exports = function (RED) {
     if (!fs.existsSync(node.path)) {
       coreIO.internalDebug('IO File Not Found ' + node.path)
       node.warn('Modbus IO File Not Found ' + node.path)
+    } else if (!fs.statSync(node.path).isFile()) {
+      coreIO.internalDebug('IO Path Is Not A File ' + node.path)
+      node.warn('Modbus IO Path Is Not A File ' + node.path)
     } else {
       node.lineReader = new coreIO.LineByLineReader(node.path)
       coreIO.internalDebug('Read IO File ' + node.path)
@@ -87,9 +90,12 @@ module.exports = function (RED) {
     }
 
     node.on('close', function (done) {
-      fs.unwatchFile(node.path)
-      node.watcher.stop()
-      node.lineReader.removeAllListeners()
+      if (node.path) {
+        fs.unwatchFile(node.path)
+      }
+      if (node.lineReader) {
+        node.lineReader.removeAllListeners()
+      }
       node.removeAllListeners()
       done()
     })

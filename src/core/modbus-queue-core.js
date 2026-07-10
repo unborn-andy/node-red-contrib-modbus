@@ -9,12 +9,15 @@
 'use strict'
 // SOURCE-MAP-REQUIRED
 
-// eslint-disable-next-line no-var
-var de = de || { biancoroyal: { modbus: { queue: { core: {} } } } } // eslint-disable-line no-use-before-define
-de.biancoroyal.modbus.queue.core.internalDebug = de.biancoroyal.modbus.queue.core.internalDebug || require('debug')('contribModbus:queue:core') // eslint-disable-line no-use-before-define
-de.biancoroyal.modbus.queue.core.core = de.biancoroyal.modbus.queue.core.core || require('./modbus-core') // eslint-disable-line no-use-before-define
+const internalDebug = require('debug')('contribModbus:queue:core')
+const coreModule = require('./modbus-core')
 
-de.biancoroyal.modbus.queue.core.initQueue = function (node) {
+const queueCore = {}
+
+queueCore.internalDebug = internalDebug
+queueCore.core = coreModule
+
+queueCore.initQueue = function (node) {
   node.bufferCommandList.clear()
   node.sendingAllowed.clear()
   node.unitSendingAllowed = []
@@ -25,7 +28,7 @@ de.biancoroyal.modbus.queue.core.initQueue = function (node) {
   }
 }
 
-de.biancoroyal.modbus.queue.core.checkQueuesAreEmpty = function (node) {
+queueCore.checkQueuesAreEmpty = function (node) {
   let queuesAreEmpty = true
   for (let step = 0; step <= 255; step++) {
     queuesAreEmpty &= (node.bufferCommandList.get(step).length === 0)
@@ -33,22 +36,20 @@ de.biancoroyal.modbus.queue.core.checkQueuesAreEmpty = function (node) {
   return queuesAreEmpty
 }
 
-de.biancoroyal.modbus.queue.core.queueSerialUnlockCommand = function (node) {
+queueCore.queueSerialUnlockCommand = function (node) {
   this.internalDebug('queue serial unlock command node name: ' + node.name + ' id: ' + node.id)
   node.serialSendingAllowed = true
 }
 
-de.biancoroyal.modbus.queue.core.queueSerialLockCommand = function (node) {
+queueCore.queueSerialLockCommand = function (node) {
   this.internalDebug('queue serial lock command node name: ' + node.name + ' id: ' + node.id)
   node.serialSendingAllowed = false
 }
 
-de.biancoroyal.modbus.queue.core.sequentialDequeueCommand = function (node) {
+queueCore.sequentialDequeueCommand = function (node) {
   this.internalDebug('sequential de-queue command')
   return new Promise(
     function (resolve, reject) {
-      const queueCore = de.biancoroyal.modbus.queue.core
-
       if (node.parallelUnitIdsAllowed) {
         for (let unitId = 0; unitId < 256; unitId += 1) {
           queueCore.sendQueueDataToModbus(node, unitId)
@@ -97,7 +98,7 @@ de.biancoroyal.modbus.queue.core.sequentialDequeueCommand = function (node) {
     })
 }
 
-de.biancoroyal.modbus.queue.core.sendQueueDataToModbus = function (node, unitId) {
+queueCore.sendQueueDataToModbus = function (node, unitId) {
   const queueLength = node.bufferCommandList.get(unitId).length
   node.queueLog(JSON.stringify({
     type: 'send queue data to Modbus',
@@ -118,7 +119,7 @@ de.biancoroyal.modbus.queue.core.sendQueueDataToModbus = function (node, unitId)
   }
 }
 
-de.biancoroyal.modbus.queue.core.dequeueLogEntry = function (node, state, info) {
+queueCore.dequeueLogEntry = function (node, state, info) {
   node.queueLog(JSON.stringify({
     state: state.value,
     message: `${info} ${node.clienttype}`,
@@ -126,8 +127,7 @@ de.biancoroyal.modbus.queue.core.dequeueLogEntry = function (node, state, info) 
   }))
 }
 
-de.biancoroyal.modbus.queue.core.dequeueCommand = function (node) {
-  const queueCore = de.biancoroyal.modbus.queue.core
+queueCore.dequeueCommand = function (node) {
   const state = node.actualServiceState
 
   if (node.messageAllowedStates.indexOf(state.value) === -1) {
@@ -141,15 +141,15 @@ de.biancoroyal.modbus.queue.core.dequeueCommand = function (node) {
   }
 }
 
-de.biancoroyal.modbus.queue.core.getUnitIdToQueue = function (node, msg) {
+queueCore.getUnitIdToQueue = function (node, msg) {
   return parseInt(msg.payload.unitid) || parseInt(node.unit_id) || 0
 }
 
-de.biancoroyal.modbus.queue.core.isValidUnitId = function (unitId) {
+queueCore.isValidUnitId = function (unitId) {
   return (unitId >= 0 && unitId <= 255)
 }
 
-de.biancoroyal.modbus.queue.core.getQueueLengthByUnitId = function (node, unitId) {
+queueCore.getQueueLengthByUnitId = function (node, unitId) {
   if (this.isValidUnitId(unitId)) {
     return node.bufferCommandList.get(unitId).length
   } else {
@@ -157,14 +157,12 @@ de.biancoroyal.modbus.queue.core.getQueueLengthByUnitId = function (node, unitId
   }
 }
 
-de.biancoroyal.modbus.queue.core.pushToQueueByUnitId = function (node, callModbus, msg, cb, cberr) {
-  const coreQueue = de.biancoroyal.modbus.queue.core
-
+queueCore.pushToQueueByUnitId = function (node, callModbus, msg, cb, cberr) {
   return new Promise(
     function (resolve, reject) {
       try {
-        const unitId = coreQueue.getUnitIdToQueue(node, msg)
-        if (!coreQueue.isValidUnitId(unitId)) {
+        const unitId = queueCore.getUnitIdToQueue(node, msg)
+        if (!queueCore.isValidUnitId(unitId)) {
           reject(new Error('UnitId ' + unitId + ' is not valid from msg or node'))
           return
         } else {
@@ -174,13 +172,21 @@ de.biancoroyal.modbus.queue.core.pushToQueueByUnitId = function (node, callModbu
             unitId
           }))
         }
-        const queueLength = coreQueue.getQueueLengthByUnitId(node, unitId)
+        const queueLength = queueCore.getQueueLengthByUnitId(node, unitId)
+
+        const maxDepth = node.maxQueueDepth || 100
+        if (queueLength >= maxDepth) {
+          reject(new Error('Queue full for UnitId ' + unitId + ' (max ' + maxDepth + ')'))
+          return
+        }
 
         msg.queueLengthByUnitId = { unitId, queueLength }
         msg.queueUnitId = unitId
 
         if (!node.parallelUnitIdsAllowed || node.clienttype === 'serial') {
-          node.unitSendingAllowed.push(unitId)
+          if (!node.unitSendingAllowed.includes(unitId)) {
+            node.unitSendingAllowed.push(unitId)
+          }
         }
 
         node.bufferCommandList.get(unitId).push({ callModbus, msg, cb, cberr })
@@ -191,10 +197,9 @@ de.biancoroyal.modbus.queue.core.pushToQueueByUnitId = function (node, callModbu
         }))
         resolve()
       } catch (err) {
-        /* istanbul ignore next */
         reject(err)
       }
     })
 }
 
-module.exports = de.biancoroyal.modbus.queue.core
+module.exports = queueCore

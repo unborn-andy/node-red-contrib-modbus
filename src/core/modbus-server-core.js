@@ -8,38 +8,37 @@
 'use strict'
 // SOURCE-MAP-REQUIRED
 
-const _ = require('underscore')
+const internalDebug = require('debug')('contribModbus:core:server')
 
-// eslint-disable-next-line no-var
-var de = de || { biancoroyal: { modbus: { core: { server: { } } } } } // eslint-disable-line no-use-before-define
-de.biancoroyal.modbus.core.server.internalDebug = de.biancoroyal.modbus.core.server.internalDebug || require('debug')('contribModbus:core:server') // eslint-disable-line no-use-before-define
+const coreServer = {}
 
-de.biancoroyal.modbus.core.server.bufferFactor = 8
-de.biancoroyal.modbus.core.server.memoryTypes = ['holding', 'coils', 'input', 'discrete']
-de.biancoroyal.modbus.core.server.memoryUint16Types = ['holding', 'input']
-de.biancoroyal.modbus.core.server.memoryUint8Types = ['coils', 'discrete']
+coreServer.internalDebug = internalDebug
+coreServer.bufferFactor = 8
+coreServer.memoryTypes = ['holding', 'coils', 'input', 'discrete']
+coreServer.memoryUint16Types = ['holding', 'input']
+coreServer.memoryUint8Types = ['coils', 'discrete']
 
-de.biancoroyal.modbus.core.server.getLogFunction = function (node) {
+coreServer.getLogFunction = function (node) {
   if (node.internalDebugLog) {
     return node.internalDebugLog
   } else {
-    return de.biancoroyal.modbus.core.server.internalDebug
+    return internalDebug
   }
 }
 
-de.biancoroyal.modbus.core.server.isValidMemoryMessage = function (msg) {
-  return _.isUndefined(msg.payload) === false &&
+coreServer.isValidMemoryMessage = function (msg) {
+  return msg.payload !== undefined &&
     msg.payload.register &&
     Number.isInteger(msg.payload.address) &&
     msg.payload.address >= 0 &&
     msg.payload.address <= 65535
 }
 
-de.biancoroyal.modbus.core.server.isValidMessage = function (msg) {
-  return _.isUndefined(msg) === false && _.isUndefined(msg.payload) === false
+coreServer.isValidMessage = function (msg) {
+  return msg !== undefined && msg.payload !== undefined
 }
 
-de.biancoroyal.modbus.core.server.copyToModbusFlexBuffer = function (node, msg) {
+coreServer.copyToModbusFlexBuffer = function (node, msg) {
   switch (msg.payload.register) {
     case 'holding':
       msg.bufferData.copy(node.registers, msg.bufferSplitAddress)
@@ -59,7 +58,7 @@ de.biancoroyal.modbus.core.server.copyToModbusFlexBuffer = function (node, msg) 
   return true
 }
 
-de.biancoroyal.modbus.core.server.writeToModbusFlexBuffer = function (node, msg) {
+coreServer.writeToModbusFlexBuffer = function (node, msg) {
   switch (msg.payload.register) {
     case 'holding':
       node.registers.writeUInt16BE((Buffer.isBuffer(msg.bufferPayload)) ? msg.bufferPayload.readUInt16BE(0) : msg.bufferPayload, msg.bufferSplitAddress)
@@ -79,8 +78,7 @@ de.biancoroyal.modbus.core.server.writeToModbusFlexBuffer = function (node, msg)
   return true
 }
 
-de.biancoroyal.modbus.core.server.writeModbusFlexServerMemory = function (node, msg) {
-  const coreServer = de.biancoroyal.modbus.core.server
+coreServer.writeModbusFlexServerMemory = function (node, msg) {
   msg.bufferSplitAddress = (parseInt(msg.payload.address) + parseInt(node.splitAddress)) * coreServer.bufferFactor
   msg.bufferAddress = parseInt(msg.payload.address) * coreServer.bufferFactor
 
@@ -91,7 +89,7 @@ de.biancoroyal.modbus.core.server.writeModbusFlexServerMemory = function (node, 
   }
 }
 
-de.biancoroyal.modbus.core.server.convertInputForBufferWrite = function (msg) {
+coreServer.convertInputForBufferWrite = function (msg) {
   let isMultipleWrite = false
   if (msg.payload.value?.length) {
     msg.bufferPayload = new Uint8Array(msg.payload?.value)
@@ -106,7 +104,7 @@ de.biancoroyal.modbus.core.server.convertInputForBufferWrite = function (msg) {
   return isMultipleWrite
 }
 
-de.biancoroyal.modbus.core.server.copyToModbusBuffer = function (node, msg) {
+coreServer.copyToModbusBuffer = function (node, msg) {
   switch (msg.payload.register) {
     case 'holding':
       msg.bufferData.copy(node.modbusServer.holding, msg.bufferAddress)
@@ -126,7 +124,7 @@ de.biancoroyal.modbus.core.server.copyToModbusBuffer = function (node, msg) {
   return true
 }
 
-de.biancoroyal.modbus.core.server.writeToModbusBuffer = function (node, msg) {
+coreServer.writeToModbusBuffer = function (node, msg) {
   switch (msg.payload.register) {
     case 'holding':
       node.modbusServer.holding.writeUInt16BE((Buffer.isBuffer(msg.bufferPayload)) ? msg.bufferPayload.readUInt16BE(0) : msg.bufferPayload, msg.bufferAddress)
@@ -146,8 +144,7 @@ de.biancoroyal.modbus.core.server.writeToModbusBuffer = function (node, msg) {
   return true
 }
 
-de.biancoroyal.modbus.core.server.writeModbusServerMemory = function (node, msg) {
-  const coreServer = de.biancoroyal.modbus.core.server
+coreServer.writeModbusServerMemory = function (node, msg) {
   msg.bufferAddress = parseInt(msg.payload.address) * coreServer.bufferFactor
 
   if (coreServer.convertInputForBufferWrite(msg)) {
@@ -157,8 +154,7 @@ de.biancoroyal.modbus.core.server.writeModbusServerMemory = function (node, msg)
   }
 }
 
-de.biancoroyal.modbus.core.server.writeToServerMemory = function (node, msg) {
-  const coreServer = de.biancoroyal.modbus.core.server
+coreServer.writeToServerMemory = function (node, msg) {
   msg.payload.register = msg.payload.register.toLowerCase()
   try {
     if (coreServer.memoryTypes.includes(msg.payload.register)) {
@@ -170,8 +166,7 @@ de.biancoroyal.modbus.core.server.writeToServerMemory = function (node, msg) {
   }
 }
 
-de.biancoroyal.modbus.core.server.writeToFlexServerMemory = function (node, msg) {
-  const coreServer = de.biancoroyal.modbus.core.server
+coreServer.writeToFlexServerMemory = function (node, msg) {
   msg.payload.register = msg.payload.register ? msg.payload.register.toLowerCase() : undefined; try {
     if (coreServer.memoryTypes.includes(msg.payload.register)) {
       coreServer.writeModbusFlexServerMemory(node, msg)
@@ -182,4 +177,4 @@ de.biancoroyal.modbus.core.server.writeToFlexServerMemory = function (node, msg)
   }
 }
 
-module.exports = de.biancoroyal.modbus.core.server
+module.exports = coreServer

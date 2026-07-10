@@ -65,32 +65,6 @@ describe('Getter node Unit Testing', function () {
       if (verboseWarnSpy) verboseWarnSpy.restore()
     })
 
-    // it('should handle input correctly and emit readModbus event', function (done) {
-    //   helper.load(testGetterNodes, testFlows.testGetterNodeFlowExample, function () {
-    //     const modbusWriteNode = helper.getNode('09f8f0e2049ace2d')
-    //     const modbusClientNode = helper.getNode('80aeec4c.0cb9e8')
-    //     modbusWriteNode.showStatusActivities = true
-
-    //     invalidPayloadInStub = sinon.stub(mbBasics, 'invalidPayloadIn').returns(false)
-    //     isNotReadyForInputStub = sinon.stub(modbusWriteNode, 'isNotReadyForInput').returns(false)
-    //     isInactiveStub = sinon.stub(modbusClientNode, 'isInactive').returns(false)
-
-    //     buildNewMessageObjectStub = sinon.stub(modbusWriteNode, 'buildNewMessageObject').returns({ messageId: '12345', payload: {} })
-    //     buildNewMessageStub = sinon.stub(mbBasics, 'buildNewMessage').returns({ payload: {} })
-    //     setNodeStatusToSpy = sinon.spy(mbBasics, 'setNodeStatusTo')
-    //     emitSpy = sinon.spy(modbusClientNode, 'emit')
-
-    //     const inputMsg = { payload: { value: 'test value' } }
-
-    //     modbusWriteNode.emit('input', inputMsg)
-
-    //     sinon.assert.calledOnce(setNodeStatusToSpy)
-    //     sinon.assert.calledWith(setNodeStatusToSpy, modbusClientNode.actualServiceState, modbusWriteNode)
-
-    //     done()
-    //   })
-    // })
-
     it('should handle error protocol message correctly', function () {
       const flow = Array.from(testFlows.testGetterNodeFlowExample)
 
@@ -170,26 +144,6 @@ describe('Getter node Unit Testing', function () {
       })
     })
 
-    // it('should reset input delay timer correctly', function (done) {
-    //   const flow = Array.from(testFlows.testInjectGetterWithClientFlow)
-    //
-    //   getPort().then((port) => {
-    //     flow[1].serverPort = port
-    //     flow[5].tcpPort = port
-    //
-    //     helper.load(testGetterNodes, flow, function () {
-    //       const modbusGetter = helper.getNode('cea01c8.36f8f6')
-    //       modbusGetter.inputDelayTimer = true
-    //       const clearTimeoutStub = sinon.stub(global, 'clearTimeout')
-    //
-    //       modbusGetter.resetInputDelayTimer()
-    //       sinon.assert.calledOnce(clearTimeoutStub)
-    //
-    //       done()
-    //     })
-    //   })
-    // })
-
     it('should initialize input delay timer when delayOnStart is true', function (done) {
       const flow = Array.from(testFlows.testInjectGetterWithClientFlow)
 
@@ -253,68 +207,6 @@ describe('Getter node Unit Testing', function () {
       })
     })
 
-    // it('simple flow with inject should be loaded', function (done) {
-    //   const flow = Array.from(testFlows.testInjectGetterWithClientFlow)
-
-    //   getPort().then((port) => {
-    //     flow[1].serverPort = port
-    //     flow[5].tcpPort = port
-
-    //     helper.load(testGetterNodes, flow, function () {
-    //       const h1 = helper.getNode('h1')
-    //       let counter = 0
-    //       h1.on('input', function () {
-    //         counter++
-    //         if (counter === 1) {
-    //           done()
-    //         }
-    //       })
-    //     })
-    //   })
-    // })
-
-    // it('should work as simple flow with inject and IO', function (done) {
-    //   const flow = Array.from(testFlows.testGetterFlowWithInjectIo)
-
-    //   getPort().then((port) => {
-    //     flow[1].serverPort = port
-    //     flow[5].tcpPort = port
-    //     console.log(flow[1].serverPort, 'nnnnmnm', flow[5].tcpPort)
-
-    //     helper.load(testGetterNodes, flow, function () {
-    //       const modbusGetter = helper.getNode('a2adb6ed727a01d6')
-    //       const h1 = helper.getNode('67bcb38642737ce8')
-    //       let counter = 0
-    //       h1.on('input', function () {
-    //         counter++
-    //         if (modbusGetter.bufferMessageList.size === 0 && counter === 1) {
-    //           done()
-    //         }
-    //       })
-    //     })
-    //   })
-    // })
-
-    // it('should work as simple flow with inject and IO with read done', function (done) {
-    //   const flow = Array.from(testFlows.testGetterFlowWithInjectIo)
-
-    //   getPort().then((port) => {
-    //     flow[1].serverPort = port
-    //     flow[5].tcpPort = port
-
-    //     helper.load(testGetterNodes, flow, function () {
-    //       const modbusGetter = helper.getNode('a2adb6ed727a01d6')
-    //       let counter = 0
-    //       modbusGetter.on('modbusGetterNodeDone', function () {
-    //         counter++
-    //         if (modbusGetter.bufferMessageList.size === 0 && counter === 1) {
-    //           done()
-    //         }
-    //       })
-    //     })
-    //   })
-    // })
-
     it('should work as simple flow with wrong write inject and IO', function (done) {
       const flow = Array.from(testFlows.testGetterFlow)
 
@@ -359,22 +251,6 @@ describe('Getter node Unit Testing', function () {
         })
       })
     })
-
-    // it('should be not state queueing - not ready to send', function (done) {
-    //   const flow = Array.from(testFlows.testGetterFlowWithInjectIo)
-
-    //   getPort().then((port) => {
-    //     flow[1].serverPort = port
-    //     flow[5].tcpPort = port
-
-    //     helper.load(testGetterNodes, flow, function () {
-    //       const modbusGetterNode = helper.getNode('a2adb6ed727a01d6')
-    //         mbBasics.setNodeStatusTo('stopped', modbusGetterNode)
-    //         modbusGetterNode.statusText.should.equal('stopped')
-    //         done()
-    //     })
-    //   })
-    // })
 
     it('should handle modbus command error correctly', async () => {
       const flow = Array.from(testFlows.testGetterFlowWithInjectIo)

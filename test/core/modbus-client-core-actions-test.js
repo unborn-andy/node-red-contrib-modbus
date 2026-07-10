@@ -1,245 +1,19 @@
 /**
  * Original Work Copyright 2014 IBM Corp.
- * node-red
- *
- * Copyright (c) since the year 2016 Klaus Landsdorf (http://plus4nodered.com/)
- * All rights reserved.
  * node-red-contrib-modbus - The BSD 3-Clause License
- *
  **/
-
 'use strict'
 
 const assert = require('assert')
 const coreClientUnderTest = require('../../src/core/modbus-client-core')
 const sinon = require('sinon')
+const { useFakeTimers } = require('../helper/test-helper-extensions')
 const chai = require('chai')
 const expect = chai.expect
+const { installCoreClientSandboxHooks } = require('./modbus-client-core-test-helper')
 
-describe('Core Client Testing', function () {
-  describe('readModbusByFunctionCode', () => {
-    it('should call readModbusByFunctionCodeOne when msg.payload.fc is 1', () => {
-      const node = {}
-      const msg = { payload: { fc: '1' } }
-      const cb = sinon.spy()
-      const cberr = sinon.spy()
-
-      sinon.stub(coreClientUnderTest, 'readModbusByFunctionCodeOne')
-
-      coreClientUnderTest.readModbusByFunctionCode(node, msg, cb, cberr)
-
-      sinon.assert.calledOnce(coreClientUnderTest.readModbusByFunctionCodeOne)
-      sinon.assert.calledWith(coreClientUnderTest.readModbusByFunctionCodeOne, node, msg, cb, cberr)
-
-      coreClientUnderTest.readModbusByFunctionCodeOne.restore()
-    })
-
-    it('should call readCoils_deformedReadEnabled and use the deformed path if the option is enabled', async () => {
-      let isSuccess = false
-      const node = {
-        warn () {},
-        client: {
-          async readCoils_deformedReadEnabled () {
-            isSuccess = true
-            return 'success'
-          }
-        },
-        activateSending: async function () {
-          return 'success'
-        }
-      }
-
-      const msg = { payload: { fc: '1', enableDeformedMessages: true } }
-      const cb = sinon.spy()
-      const cberr = sinon.spy()
-
-      coreClientUnderTest.readModbusByFunctionCode(node, msg, cb, cberr)
-      assert.equal(isSuccess, true)
-    })
-
-    it('should call read readDiscreteInputs_deformedReadEnabled and use the deformed path if the option is enabled', async () => {
-      let isSuccess = false
-      const node = {
-        warn () {},
-        client: {
-          async readDiscreteInputs_deformedReadEnabled () {
-            isSuccess = true
-            return 'success'
-          }
-        },
-        activateSending: async function () {
-          return 'success'
-        }
-      }
-
-      const msg = { payload: { fc: '2', enableDeformedMessages: true } }
-      const cb = sinon.spy()
-      const cberr = sinon.spy()
-
-      coreClientUnderTest.readModbusByFunctionCode(node, msg, cb, cberr)
-      assert.equal(isSuccess, true)
-    })
-
-    it('should call read readHoldingRegisters_deformedReadEnabled and use the deformed path if the option is enabled', async () => {
-      let isSuccess = false
-      const node = {
-        warn () {},
-        client: {
-          async readHoldingRegisters_deformedReadEnabled () {
-            isSuccess = true
-            return 'success'
-          }
-        },
-        activateSending: async function () {
-          return 'success'
-        }
-      }
-
-      const msg = { payload: { fc: '3', enableDeformedMessages: true } }
-      const cb = sinon.spy()
-      const cberr = sinon.spy()
-
-      coreClientUnderTest.readModbusByFunctionCode(node, msg, cb, cberr)
-      assert.equal(isSuccess, true)
-    })
-
-    it('should call read readInputRegisters_deformedReadEnabled and use the deformed path if the option is enabled', async () => {
-      let isSuccess = false
-      const node = {
-        warn () {},
-        client: {
-          async readInputRegisters_deformedReadEnabled () {
-            isSuccess = true
-            return 'success'
-          }
-        },
-        activateSending: async function () {
-          return 'success'
-        }
-      }
-
-      const msg = { payload: { fc: '4', enableDeformedMessages: true } }
-      const cb = sinon.spy()
-      const cberr = sinon.spy()
-
-      coreClientUnderTest.readModbusByFunctionCode(node, msg, cb, cberr)
-      assert.equal(isSuccess, true)
-    })
-
-    it('should handle msg.payload.fc as a string representation of a number', () => {
-      const node = {}
-      const msg = { payload: { fc: '2' } }
-      const cb = sinon.spy()
-      const cberr = sinon.spy()
-
-      sinon.stub(coreClientUnderTest, 'readModbusByFunctionCodeTwo')
-
-      coreClientUnderTest.readModbusByFunctionCode(node, msg, cb, cberr)
-
-      sinon.assert.calledOnce(coreClientUnderTest.readModbusByFunctionCodeTwo)
-      sinon.assert.calledWith(coreClientUnderTest.readModbusByFunctionCodeTwo, node, msg, cb, cberr)
-
-      coreClientUnderTest.readModbusByFunctionCodeTwo.restore()
-    })
-    it('should call readModbusByFunctionCodeThree when msg.payload.fc is 3', () => {
-      const node = {}
-      const msg = { payload: { fc: '3' } }
-      const cb = sinon.spy()
-      const cberr = sinon.spy()
-
-      sinon.stub(coreClientUnderTest, 'readModbusByFunctionCodeThree')
-
-      coreClientUnderTest.readModbusByFunctionCode(node, msg, cb, cberr)
-
-      sinon.assert.calledOnce(coreClientUnderTest.readModbusByFunctionCodeThree)
-      sinon.assert.calledWith(coreClientUnderTest.readModbusByFunctionCodeThree, node, msg, cb, cberr)
-
-      coreClientUnderTest.readModbusByFunctionCodeThree.restore()
-    })
-    it('should call readModbusByFunctionCodeFour when msg.payload.fc is 4', () => {
-      const node = {}
-      const msg = { payload: { fc: '4' } }
-      const cb = sinon.spy()
-      const cberr = sinon.spy()
-
-      sinon.stub(coreClientUnderTest, 'readModbusByFunctionCodeFour')
-
-      coreClientUnderTest.readModbusByFunctionCode(node, msg, cb, cberr)
-      sinon.assert.calledWith(coreClientUnderTest.readModbusByFunctionCodeFour, node, msg, cb, cberr)
-      coreClientUnderTest.readModbusByFunctionCodeFour.restore()
-    })
-    it('should log "Function Code Unknown" when msg.payload.fc is not 1, 2, 3, or 4', () => {
-      const stubGetLogFunction = sinon.stub(coreClientUnderTest, 'getLogFunction').returns(sinon.stub())
-      const stubActivateSendingOnFailure = sinon.stub(coreClientUnderTest, 'activateSendingOnFailure')
-      const node = {}
-      const msg = { payload: { fc: '5' } }
-      const cb = sinon.spy()
-      const cberr = sinon.spy()
-      const nodeLog = sinon.stub().returns(null)
-      stubGetLogFunction.returns(nodeLog)
-      coreClientUnderTest.readModbusByFunctionCode(node, msg, cb, cberr)
-      sinon.assert.calledOnce(stubActivateSendingOnFailure)
-      sinon.assert.calledWithExactly(stubActivateSendingOnFailure, node, cberr, sinon.match.instanceOf(Error), msg)
-      sinon.assert.calledOnceWithExactly(nodeLog, 'Function Code Unknown %s', msg.payload.fc)
-
-      stubGetLogFunction.restore()
-      stubActivateSendingOnFailure.restore()
-    })
-  })
-
-  describe('writeModbusByFunctionCodeSixteen', () => {
-    it('should call activateSendingOnSuccess with parsed address and value when getID returns 0', function () {
-      const node = {
-        client: {
-          writeRegisters: sinon.stub().rejects(new Error('some error')),
-          getID: sinon.stub().returns(0)
-        },
-        modbusErrorHandling: sinon.spy()
-      }
-      const msg = {
-        payload: {
-          address: '123',
-          value: '456',
-          quantity: 3
-        }
-      }
-      const cb = sinon.spy()
-      const cberr = sinon.spy()
-      const coreClient = {
-        activateSendingOnSuccess: sinon.spy(),
-        activateSendingOnFailure: sinon.spy()
-      }
-
-      coreClientUnderTest.writeModbusByFunctionCodeSixteen(node, msg, cb, cberr)
-      sinon.assert.notCalled(coreClient.activateSendingOnSuccess)
-    })
-    it('should call activateSendingOnSuccess when getID returns 0', function () {
-      const node = {
-        client: {
-          writeRegisters: sinon.stub().resolves({}),
-          getID: sinon.stub().returns(1)
-        },
-        modbusErrorHandling: sinon.spy()
-      }
-      const msg = {
-        payload: {
-          address: '123',
-          value: [1, 2, 3],
-          quantity: 3
-        }
-      }
-      const cb = sinon.spy()
-      const cberr = sinon.spy()
-      const coreClient = {
-        activateSendingOnSuccess: sinon.spy(),
-        activateSendingOnFailure: sinon.spy()
-      }
-
-      coreClientUnderTest.writeModbusByFunctionCodeSixteen(node, msg, cb, cberr)
-
-      sinon.assert.notCalled(coreClient.activateSendingOnFailure)
-    })
-  })
+describe('Core Client Actions Testing', function () {
+  installCoreClientSandboxHooks(this)
 
   describe('Core Client', function () {
     it('should call activateSendingOnFailure on quantity mismatch', function (done) {
@@ -640,7 +414,7 @@ describe('Core Client Testing', function () {
       let cb = sinon.spy()
       let cberr = sinon.spy()
       coreClientUnderTest.activateSendingOnFailure = sinon.spy()
-      const clock3 = sinon.useFakeTimers()
+      const clock3 = useFakeTimers(sinon)
 
       coreClientUnderTest.customModbusMessage(node, msg, cb, cberr)
       clock3.tick(1)
@@ -649,7 +423,7 @@ describe('Core Client Testing', function () {
       sinon.assert.calledWithExactly(node.stateService.send, 'READ')
       clock3.restore()
 
-      const clock1 = sinon.useFakeTimers()
+      const clock1 = useFakeTimers(sinon)
 
       msg = {
         payload: 'testPayload',
@@ -682,7 +456,7 @@ describe('Core Client Testing', function () {
       cb = sinon.spy()
       cberr = sinon.spy()
 
-      const clock2 = sinon.useFakeTimers()
+      const clock2 = useFakeTimers(sinon)
       coreClientUnderTest.customModbusMessage(node, msg, cb, cberr)
 
       clock2.tick(1)
@@ -715,7 +489,7 @@ describe('Core Client Testing', function () {
       const cb = sinon.spy()
       const cberr = sinon.spy()
       sinon.stub(coreClientUnderTest, 'readModbusByFunctionCodeOne')
-      const clock = sinon.useFakeTimers()
+      const clock = useFakeTimers(sinon)
 
       coreClientUnderTest.readModbus(node, msg, cb, cberr)
       clock.tick(1)
@@ -744,7 +518,7 @@ describe('Core Client Testing', function () {
       const cberr = sinon.spy()
       sinon.stub(coreClientUnderTest, 'writeModbusByFunctionCodeSixteen')
 
-      const clock = sinon.useFakeTimers()
+      const clock = useFakeTimers(sinon)
       coreClientUnderTest.writeModbus(node, msg, cb, cberr)
       clock.tick(1)
       expect(coreClientUnderTest.writeModbusByFunctionCodeSixteen.calledOnceWith(node, msg, cb, cberr)).to.equal(true)
@@ -775,7 +549,7 @@ describe('Core Client Testing', function () {
       sinon.stub(coreClientUnderTest, 'getLogFunction').returns(nodeLog)
       sinon.stub(coreClientUnderTest, 'writeModbusByFunctionCodeSix')
 
-      const clock = sinon.useFakeTimers()
+      const clock = useFakeTimers(sinon)
       coreClientUnderTest.writeModbus(node, msg, cb, cberr)
       clock.tick(1)
       expect(coreClientUnderTest.getLogFunction.calledOnceWith(node)).to.equal(true)
@@ -797,7 +571,7 @@ describe('Core Client Testing', function () {
         }
       }
 
-      const clock = sinon.useFakeTimers()
+      const clock = useFakeTimers(sinon)
       const msg = { payload: { fc: 99 } }
       const cb = sinon.spy()
       const cberr = sinon.spy()
@@ -857,7 +631,7 @@ describe('Core Client Testing', function () {
       const msg = { payload: { fc: 16 } }
       const cb = sinon.spy()
       const cberr = sinon.spy()
-      const clock = sinon.useFakeTimers()
+      const clock = useFakeTimers(sinon)
       coreClientUnderTest.activateSendingOnFailure = sinon.spy()
 
       coreClientUnderTest.writeModbus(node, msg, cb, cberr)
@@ -896,23 +670,6 @@ describe('Core Client Testing', function () {
       done()
     })
 
-    // it('should call activateSendingOnSuccess when client ID is 0', async (done) => {
-    //   const node = {
-    //     client: {
-    //       getID: sinon.stub().returns(0),
-    //       writeCoils: sinon.stub().rejects(new Error('Write error'))
-    //     },
-    //     modbusErrorHandling: sinon.spy()
-    //   }
-    //   const msg = { payload: { address: 1, value: [true, false], quantity: 2 } }
-    //   const cb = sinon.spy()
-    //   const cberr = sinon.spy()
-
-    //   await coreClientUnderTest.writeModbusByFunctionCodeFifteen(node, msg, cb, cberr)
-    //   expect(coreClientUnderTest.activateSendingOnFailure.calledOnceWith(node, cberr, sinon.match.instanceOf(Error).and(sinon.match.has('message', 'Write error')), msg)).to.be.false()
-    //   done()
-    // })
-
     it('should successfully write a coil with a true value', () => {
       const node = {
         client: {
@@ -945,116 +702,6 @@ describe('Core Client Testing', function () {
       })
     })
   })
-
-  describe('setNewNodeOptionalSettings', function () {
-    it('should set reconnectTimeout if provided in msg.payload', function () {
-      const node = {
-        reconnectTimeout: 1000,
-        clienttype: 'someType',
-        unit_id: 1,
-        checkUnitId: function (unitId, clienttype) {
-          return typeof unitId === 'number'
-        }
-      }
-      const msg = {
-        payload: {
-          reconnectTimeout: 2000
-        }
-      }
-      coreClientUnderTest.setNewNodeOptionalSettings(node, msg)
-
-      expect(node.reconnectTimeout).to.equal(2000)
-    })
-
-    it('should set clientTimeout if msg.payload.clientTimeout exists', function (done) {
-      const node = { clientTimeout: 1000 }
-      const msg = { payload: { clientTimeout: 2000 } }
-
-      coreClientUnderTest.setNewNodeOptionalSettings(node, msg)
-
-      assert.strict.equal(node.clientTimeout, 2000)
-      done()
-    })
-    it('should set commandDelay if msg.payload.commandDelay exists', function (done) {
-      const node = { commandDelay: 100 }
-      const msg = { payload: { commandDelay: 200 } }
-
-      coreClientUnderTest.setNewNodeOptionalSettings(node, msg)
-
-      assert.strict.equal(node.commandDelay, 200)
-      done()
-    })
-    it('should correctly parse and set unitId when provided with a valid integer', () => {
-      const node = { unit_id: 1, checkUnitId: sinon.spy() }
-      const msg = { payload: { unitId: '123' } }
-      const nodeLog = sinon.spy()
-
-      coreClientUnderTest.getLogFunction = sinon.stub().returns(nodeLog)
-
-      coreClientUnderTest.setNewNodeOptionalSettings(node, msg)
-
-      sinon.assert.calledWith(coreClientUnderTest.getLogFunction, node)
-      sinon.assert.calledWith(node.checkUnitId, 123, node.clienttype)
-    })
-
-    it('should set unit_id to msg.payload.unitId if it is a valid unitId', function () {
-      const node = {
-        unit_id: 1,
-        clienttype: 'tcp',
-        checkUnitId: sinon.stub().returns(true)
-      }
-      const msg = {
-        payload: {
-          unitId: 2
-        }
-      }
-
-      coreClientUnderTest.setNewNodeOptionalSettings(node, msg)
-      assert.strictEqual(node.unit_id, 2)
-    })
-    it('should set unit_id to node.unit_id if msg.payload.unitId is not a valid unitId', function () {
-      const node = {
-        unit_id: 1,
-        clienttype: 'tcp',
-        checkUnitId: sinon.stub().returns(false)
-      }
-      const msg = {
-        payload: {
-          unitId: 'invalid'
-        }
-      }
-      coreClientUnderTest.setNewNodeOptionalSettings(node, msg)
-
-      assert.strictEqual(node.unit_id, 1)
-    })
-
-    it('should set commandDelay to msg.payload.commandDelay if it is defined', function () {
-      const node = {
-        commandDelay: 100
-      }
-
-      const msg = {
-        payload: {
-          commandDelay: 200
-        }
-      }
-
-      coreClientUnderTest.setNewNodeOptionalSettings(node, msg)
-      assert.strictEqual(node.commandDelay, 200)
-    })
-
-    it('should keep commandDelay unchanged if msg.payload.commandDelay is not defined', function () {
-      const node = {
-        commandDelay: 100
-      }
-      const msg = {
-        payload: {}
-      }
-      coreClientUnderTest.setNewNodeOptionalSettings(node, msg)
-      assert.strictEqual(node.commandDelay, 100)
-    })
-  })
-
   describe('modbusClient.writeModbus', function () {
     it('should log an error if node.client is not ready', function (done) {
       const node = {
@@ -1116,15 +763,22 @@ describe('Core Client Testing', function () {
       }
       const cb = sinon.stub()
       const cberr = sinon.stub()
+      const origFifteen = coreClientUnderTest.writeModbusByFunctionCodeFifteen
+      const origFailure = coreClientUnderTest.activateSendingOnFailure
+      const origLogFn = coreClientUnderTest.getLogFunction
       coreClientUnderTest.writeModbusByFunctionCodeFifteen = sinon.stub()
       coreClientUnderTest.activateSendingOnFailure = sinon.stub()
       const mockNodeLog = sinon.stub()
       coreClientUnderTest.getLogFunction = sinon.stub().returns(mockNodeLog)
       coreClientUnderTest.writeModbus(node, msg, cb, cberr)
-      sinon.assert.notCalled(coreClientUnderTest.activateSendingOnFailure)
-      sinon.assert.notCalled(mockNodeLog)
-
-      done()
+      setTimeout(function () {
+        sinon.assert.notCalled(coreClientUnderTest.activateSendingOnFailure)
+        sinon.assert.notCalled(mockNodeLog)
+        coreClientUnderTest.writeModbusByFunctionCodeFifteen = origFifteen
+        coreClientUnderTest.activateSendingOnFailure = origFailure
+        coreClientUnderTest.getLogFunction = origLogFn
+        done()
+      }, 20)
     })
     it('should call activateSendingOnFailure and nodeLog on error', function (done) {
       const node = {
@@ -1155,6 +809,9 @@ describe('Core Client Testing', function () {
       const cb = sinon.stub()
       const cberr = sinon.stub()
 
+      const origFive = coreClientUnderTest.writeModbusByFunctionCodeFive
+      const origFailure = coreClientUnderTest.activateSendingOnFailure
+      const origLogFn = coreClientUnderTest.getLogFunction
       coreClientUnderTest.writeModbusByFunctionCodeFive = sinon.stub().throws(new Error('Test Error'))
       coreClientUnderTest.activateSendingOnFailure = sinon.stub()
       const mockNodeLog = sinon.stub()
@@ -1162,37 +819,12 @@ describe('Core Client Testing', function () {
 
       coreClientUnderTest.writeModbus(node, msg, cb, cberr)
 
-      done()
-    })
-  })
-  describe('setNewSerialNodeSettings', function () {
-    it('should parse serialAsciiResponseStartDelimiter from hex string if provided', function () {
-      const node = {
-        serialAsciiResponseStartDelimiter: 0x00,
-        clienttype: 'someType'
-      }
-      const msg = {
-        payload: {
-          serialAsciiResponseStartDelimiter: '1A'
-        }
-      }
-      coreClientUnderTest.setNewSerialNodeSettings(node, msg)
-
-      expect(node.serialAsciiResponseStartDelimiter).to.equal(0x1A)
-    })
-    it('should set serialConnectionDelay if provided in msg.payload', function () {
-      const node = {
-        serialConnectionDelay: 1000,
-        clienttype: 'someType'
-      }
-      const msg = {
-        payload: {
-          serialConnectionDelay: 2000
-        }
-      }
-
-      coreClientUnderTest.setNewSerialNodeSettings(node, msg)
-      expect(node.serialConnectionDelay).to.equal(2000)
+      setTimeout(function () {
+        coreClientUnderTest.writeModbusByFunctionCodeFive = origFive
+        coreClientUnderTest.activateSendingOnFailure = origFailure
+        coreClientUnderTest.getLogFunction = origLogFn
+        done()
+      }, 20)
     })
   })
   it('should call activateSendingOnFailure when client connection fails', () => {
