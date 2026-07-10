@@ -965,4 +965,144 @@ describe('Client node Unit Testing', function () {
       })
     })
   })
+
+  describe('Coverage uplift — client FSM and I/O paths', function () {
+    function loadClient (done, fn) {
+      helper.load(testModbusClientNodes, testFlows.testClientWithoutServerFlow, function () {
+        const node = helper.getNode('3')
+        sinon.stub(node, 'connectClient')
+        node.isFirstInitOfConnection = false
+        node.stateService.send('NEW')
+        node.stateService.send('INIT')
+        node.stateService.send('CONNECT')
+        node.stateService.send('ACTIVATE')
+        fn(node, done)
+      })
+    }
+
+    it('should send INIT after reconnecting timeout elapses', function (done) {
+      loadClient(done, function (node, done) {
+        const clock = sinon.useFakeTimers()
+        const sendSpy = sinon.spy(node.stateService, 'send')
+        node.closingModbus = false
+        node.reconnectOnTimeout = true
+        node.reconnectTimeout = 2000
+        node.stateService.send('CLOSE')
+        sendSpy.resetHistory()
+        clock.tick(2000)
+        sinon.assert.calledWith(sendSpy, 'INIT')
+        clock.restore()
+        sendSpy.restore()
+        done()
+      })
+    })
+
+    it('should not send INIT from reconnecting when closingModbus is true', function (done) {
+      loadClient(done, function (node, done) {
+        const clock = sinon.useFakeTimers()
+        const sendSpy = sinon.spy(node.stateService, 'send')
+        node.closingModbus = false
+        node.reconnectTimeout = 2000
+        node.stateService.send('CLOSE')
+        node.closingModbus = true
+        sendSpy.resetHistory()
+        clock.tick(2000)
+        sinon.assert.neverCalledWith(sendSpy, 'INIT')
+        clock.restore()
+        sendSpy.restore()
+        done()
+      })
+    })
+
+    it('should call readModbus directly when bufferCommands is false', function (done) {
+      loadClient(done, function (node, done) {
+        const readStub = sinon.stub(coreModbusClient, 'readModbus')
+        node.bufferCommands = false
+        const msg = { payload: { fc: 3, address: 0, quantity: 1, unitid: 1 } }
+        node.emit('readModbus', msg, sinon.spy(), sinon.spy())
+        sinon.assert.calledOnce(readStub)
+        readStub.restore()
+        done()
+      })
+    })
+
+    it('should call writeModbus directly when bufferCommands is false', function (done) {
+      loadClient(done, function (node, done) {
+        const writeStub = sinon.stub(coreModbusClient, 'writeModbus')
+        node.bufferCommands = false
+        const msg = { payload: { fc: 6, address: 0, value: 1, unitid: 1 } }
+        node.emit('writeModbus', msg, sinon.spy(), sinon.spy())
+        sinon.assert.calledOnce(writeStub)
+        writeStub.restore()
+        done()
+      })
+    })
+
+    it('should cberr on readModbus when client is inactive', function (done) {
+      loadClient(done, function (node, done) {
+        const cberr = sinon.spy()
+        node.stateService.send('STOP')
+        node.emit('readModbus', { payload: { unitid: 1 } }, sinon.spy(), cberr)
+        sinon.assert.calledOnce(cberr)
+        done()
+      })
+    })
+
+    it('should cberr on writeModbus when client is inactive', function (done) {
+      loadClient(done, function (node, done) {
+        const cberr = sinon.spy()
+        node.stateService.send('STOP')
+        node.emit('writeModbus', { payload: { unitid: 1 } }, sinon.spy(), cberr)
+        sinon.assert.calledOnce(cberr)
+        done()
+      })
+    })
+
+    it('should cberr when queue depth exceeds maxQueueDepth on readModbus', function (done) {
+      loadClient(done, function (node, done) {
+        const unitId = 1
+        node.maxQueueDepth = 1
+        node.bufferCommandList.set(unitId, [{
+          callModbus: sinon.spy(),
+          msg: {},
+          cb: sinon.spy(),
+          cberr: sinon.spy()
+        }])
+        const cberr = sinon.spy()
+        node.emit('readModbus', { payload: { unitid: unitId, fc: 3, address: 0, quantity: 1 } }, sinon.spy(), cberr)
+        setTimeout(function () {
+          sinon.assert.calledOnce(cberr)
+          sinon.assert.match(cberr.firstCall.args[0].message, /Queue full/)
+          done()
+        }, 50)
+      })
+    })
+
+    it('should return true from isReadyToSend in activated state', function (done) {
+      loadClient(done, function (node, done) {
+        assert.strictEqual(node.isReadyToSend(node), true)
+        done()
+      })
+    })
+
+    it('should return false from isReadyToSend in stopped state', function (done) {
+      loadClient(done, function (node, done) {
+        node.stateService.send('STOP')
+        assert.strictEqual(node.isReadyToSend(node), false)
+        done()
+      })
+    })
+
+    it('should send EMPTY from activateSending when all queues are empty', function (done) {
+      loadClient(done, function (node, done) {
+        const sendSpy = sinon.spy(node.stateService, 'send')
+        const msg = { queueUnitId: 1, payload: {} }
+        node.activateSending(msg).then(function () {
+          sinon.assert.calledWith(sendSpy, 'EMPTY')
+          sendSpy.restore()
+          done()
+        }).catch(done)
+      })
+    })
+  })
 })
