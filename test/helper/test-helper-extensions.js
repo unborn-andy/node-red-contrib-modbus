@@ -71,6 +71,22 @@ function deferAfterLoad (fn, done) {
   })
 }
 
+function waitForModbusClientActive (client, callback, maxWaitMs = 10000) {
+  const deadline = Date.now() + maxWaitMs
+  const poll = () => {
+    if (client && typeof client.isActive === 'function' && client.isActive()) {
+      callback()
+      return
+    }
+    if (Date.now() >= deadline) {
+      callback(new Error('Modbus client not active within ' + maxWaitMs + 'ms'))
+      return
+    }
+    setTimeout(poll, 50)
+  }
+  poll()
+}
+
 module.exports = {
   fakeTimerConfig: { shouldClearNativeTimers: true },
   useFakeTimers: (timerUser) => {
@@ -78,6 +94,7 @@ module.exports = {
   },
   validateFlowFixture,
   deferAfterLoad,
+  waitForModbusClientActive,
   cleanFlowPositionData: (jsonFlow) => {
     const cleanFlow = []
     // flow is an array of JSON objects with x,y,z from the Node-RED export
