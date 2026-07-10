@@ -138,6 +138,34 @@ describe('Core Client Coverage Uplift', function () {
     sandbox.assert.calledOnce(cberr)
   })
 
+  it('should cb on synthetic FC6 response when writeRegister rejects and getID is 0', async function () {
+    const writeSixImpl = coreClient.writeModbusByFunctionCodeSix
+    const node = nodeWithReject('writeRegister')
+    const msg = { payload: { fc: 6, address: 0, value: 42 } }
+    const cb = sandbox.spy()
+    writeSixImpl(node, msg, cb, sandbox.spy())
+    await flushPromises()
+    sandbox.assert.calledOnce(cb)
+  })
+
+  it('should cberr on FC6 when writeRegister rejects and getID is not 0', async function () {
+    const writeSixImpl = coreClient.writeModbusByFunctionCodeSix
+    const node = {
+      client: {
+        writeRegister: sandbox.stub().rejects(new Error('modbus reject')),
+        getID: sandbox.stub().returns(1)
+      },
+      activateSending: sandbox.stub().resolves(),
+      modbusErrorHandling: sandbox.stub(),
+      stateService: { send: sandbox.stub() }
+    }
+    const msg = { payload: { fc: 6, address: 0, value: 42 } }
+    const cberr = sandbox.spy()
+    writeSixImpl(node, msg, sandbox.spy(), cberr)
+    await flushPromises()
+    sandbox.assert.calledOnce(cberr)
+  })
+
   it('should reject FC16 when value length does not match quantity', async function () {
     const node = {
       client: { writeRegisters: sandbox.stub().resolves({}) },

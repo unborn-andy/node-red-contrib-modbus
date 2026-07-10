@@ -252,10 +252,15 @@ describe('Flex Write node Testing', function () {
           done()
         })
       })
+    })
 
-      it('should be inactive if message empty', function (done) {
-        const flow = Array.from(testFlows.testWriteParametersFlow)
-        flow[3].serverPort = '50201'
+    it('should be inactive if message empty', function (done) {
+      const flow = Array.from(testFlows.testWriteParametersFlow)
+
+      getPort().then((port) => {
+        flow[3].serverPort = port
+        flow[7].tcpPort = port
+
         helper.load(testWriteParametersNodes, flow, function () {
           const modbusClientNode = helper.getNode('80aeec4c.0cb9e8')
           setTimeout(() => {
