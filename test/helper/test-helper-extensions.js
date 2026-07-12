@@ -71,20 +71,37 @@ function deferAfterLoad (fn, done) {
   })
 }
 
-const DEFAULT_CLIENT_ACTIVE_WAIT_MS = process.env.CI ? 25000 : 10000
+const DEFAULT_CLIENT_ACTIVE_WAIT_MS = process.env.CI ? 35000 : 10000
+
+function isModbusClientReady (client) {
+  if (!client || typeof client.isActive !== 'function' || !client.isActive()) {
+    return false
+  }
+  if (!client.client) {
+    return false
+  }
+  if (typeof client.client.isOpen === 'boolean' && !client.client.isOpen) {
+    return false
+  }
+  return true
+}
 
 function waitForModbusClientActive (client, callback, maxWaitMs = DEFAULT_CLIENT_ACTIVE_WAIT_MS) {
   const deadline = Date.now() + maxWaitMs
   const poll = () => {
-    if (client && typeof client.isActive === 'function' && client.isActive()) {
+    if (isModbusClientReady(client)) {
       callback()
       return
     }
     if (Date.now() >= deadline) {
-      callback(new Error('Modbus client not active within ' + maxWaitMs + 'ms'))
+      const state = client && client.actualServiceState && client.actualServiceState.value
+      callback(new Error(
+        'Modbus client not ready within ' + maxWaitMs + 'ms' +
+        ' (state=' + state + ', hasClient=' + !!(client && client.client) + ')'
+      ))
       return
     }
-    setTimeout(poll, 50)
+    setTimeout(poll, 100)
   }
   poll()
 }
@@ -97,6 +114,7 @@ module.exports = {
   validateFlowFixture,
   deferAfterLoad,
   waitForModbusClientActive,
+  isModbusClientReady,
   cleanFlowPositionData: (jsonFlow) => {
     const cleanFlow = []
     // flow is an array of JSON objects with x,y,z from the Node-RED export
