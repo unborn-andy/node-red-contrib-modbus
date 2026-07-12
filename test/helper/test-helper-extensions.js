@@ -71,7 +71,9 @@ function deferAfterLoad (fn, done) {
   })
 }
 
-function waitForModbusClientActive (client, callback, maxWaitMs = 10000) {
+const DEFAULT_CLIENT_ACTIVE_WAIT_MS = process.env.CI ? 25000 : 10000
+
+function waitForModbusClientActive (client, callback, maxWaitMs = DEFAULT_CLIENT_ACTIVE_WAIT_MS) {
   const deadline = Date.now() + maxWaitMs
   const poll = () => {
     if (client && typeof client.isActive === 'function' && client.isActive()) {

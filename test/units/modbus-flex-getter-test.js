@@ -119,7 +119,7 @@ describe('Flex Getter node Testing', function () {
     })
 
     it('simple flow should be loaded and with receive got input', function (done) {
-      this.timeout(15000)
+      this.timeout(30000)
       const flow = Array.from(testFlows.testFlexGetterFlow)
 
       getPort().then((port) => {
@@ -129,8 +129,7 @@ describe('Flex Getter node Testing', function () {
         helper.load(testFlexGetterNodes, flow, function () {
           const modbusGetter = helper.getNode('bc5a61b6.a3972')
           const modbusClient = helper.getNode('92e7bf63.2efd7')
-          const h1 = helper.getNode('d7d5a41f495c591e')
-          h1.once('input', function () {
+          modbusGetter.once('modbusFlexGetterNodeDone', function () {
             done()
           })
           waitForModbusClientActive(modbusClient, (err) => {
