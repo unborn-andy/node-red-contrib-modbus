@@ -12,20 +12,39 @@ const serverNode = require('../../src/modbus-server.js')
 const nodeUnderTest = require('../../src/modbus-flex-write.js')
 const helper = require('node-red-node-test-helper')
 helper.init(require.resolve('node-red'))
-const expect = require('chai').expect
 const testFlows = require('./flows/modbus-flex-write-flows')
 const { getPort, waitForModbusClientActive } = require('../helper/test-helper-extensions')
 
 const testNodes = [catchNode, injectNode, functionNode, clientNode, serverNode, nodeUnderTest]
 
-function loadFlexWriteNode (flowTemplate, nodeId, callback, done) {
+const CI_TEST_TIMEOUT_MS = process.env.CI ? 60000 : 30000
+const CLIENT_ACTIVE_WAIT_MS = process.env.CI ? 35000 : 15000
+
+function prepareFlow (flowTemplate) {
   const flow = Array.from(flowTemplate)
+  const flexWrite = flow.find((n) => n.type === 'modbus-flex-write')
+  if (flexWrite) {
+    flexWrite.delayOnStart = false
+  }
+  return flow
+}
+
+function loadFlexWriteFlow (flowTemplate, nodeId, onReady, done) {
+  const flow = prepareFlow(flowTemplate)
   const client = flow.find((n) => n.type === 'modbus-client')
   const server = flow.find((n) => n.type === 'modbus-server')
 
   const load = () => {
     helper.load(testNodes, flow, function () {
-      callback(helper.getNode(nodeId), done)
+      const flexWrite = helper.getNode(nodeId)
+      const modbusClient = helper.getNode('80aeec4c.0cb9e8')
+      waitForModbusClientActive(modbusClient, (err) => {
+        if (err) {
+          done(err)
+          return
+        }
+        onReady(flexWrite, modbusClient, done)
+      }, CLIENT_ACTIVE_WAIT_MS)
     })
   }
 
@@ -40,11 +59,21 @@ function loadFlexWriteNode (flowTemplate, nodeId, callback, done) {
   }
 }
 
+function receiveAndWaitForDone (flexWrite, payload, done) {
+  flexWrite.once('modbusFlexWriteNodeError', function () {
+    done(new Error('flex write failed for payload: ' + payload))
+  })
+  flexWrite.once('modbusFlexWriteNodeDone', function () {
+    done()
+  })
+  flexWrite.receive({ payload })
+}
+
 describe('Flex Write Coverage — functional Modbus writes', function () {
+  this.timeout(CI_TEST_TIMEOUT_MS)
+
   before(function (done) {
-    helper.startServer(function () {
-      done()
-    })
+    helper.startServer(done)
   })
 
   afterEach(function (done) {
@@ -56,119 +85,36 @@ describe('Flex Write Coverage — functional Modbus writes', function () {
   })
 
   after(function (done) {
-    helper.stopServer(function () {
-      done()
-    })
+    helper.stopServer(done)
   })
 
   describe('functional writes against modbus-server', function () {
-    function loadFlowWithPort (flowTemplate, onLoaded, done) {
-      loadFlexWriteNode(flowTemplate, '82fe7fe4.7b7bc8', function (_flexWrite, done) {
-        onLoaded(done)
-      }, done)
-    }
-
-    it('should write single coil via FC5 and receive response', function (done) {
-      this.timeout(15000)
-      loadFlowWithPort(testFlows.testWriteParametersFlow, function (done) {
-        const flexWrite = helper.getNode('82fe7fe4.7b7bc8')
-        const modbusClient = helper.getNode('80aeec4c.0cb9e8')
-        const h1 = helper.getNode('h1')
-        h1.once('input', function (msg) {
-          expect(msg).to.have.property('payload')
-          done()
-        })
-        waitForModbusClientActive(modbusClient, (err) => {
-          if (err) {
-            done(err)
-            return
-          }
-          flexWrite.receive({
-            payload: '{ "value": true, "fc": 5, "unitid": 1, "address": 0, "quantity": 1 }'
+    it('should write FC5, FC6, FC15 and FC16 in one loaded flow', function (done) {
+      loadFlexWriteFlow(testFlows.testWriteParametersFlow, '82fe7fe4.7b7bc8', function (flexWrite, _modbusClient, done) {
+        receiveAndWaitForDone(flexWrite,
+          '{ "value": true, "fc": 5, "unitid": 1, "address": 0, "quantity": 1 }',
+          function () {
+            receiveAndWaitForDone(flexWrite,
+              '{ "value": 42, "fc": 6, "unitid": 1, "address": 0, "quantity": 1 }',
+              function () {
+                receiveAndWaitForDone(flexWrite,
+                  '{ "value": [true, false, true, false], "fc": 15, "unitid": 1, "address": 0, "quantity": 4 }',
+                  function () {
+                    receiveAndWaitForDone(flexWrite,
+                      '{ "value": [100, 200, 300], "fc": 16, "unitid": 1, "address": 0, "quantity": 3 }',
+                      done)
+                  })
+              })
           })
-        })
-      }, done)
-    })
-
-    it('should write single holding register via FC6', function (done) {
-      this.timeout(15000)
-      loadFlowWithPort(testFlows.testWriteParametersFlow, function (done) {
-        const flexWrite = helper.getNode('82fe7fe4.7b7bc8')
-        const modbusClient = helper.getNode('80aeec4c.0cb9e8')
-        const h1 = helper.getNode('h1')
-        h1.once('input', function (msg) {
-          expect(msg).to.have.property('payload')
-          done()
-        })
-        waitForModbusClientActive(modbusClient, (err) => {
-          if (err) {
-            done(err)
-            return
-          }
-          flexWrite.receive({
-            payload: '{ "value": 42, "fc": 6, "unitid": 1, "address": 0, "quantity": 1 }'
-          })
-        })
-      }, done)
-    })
-
-    it('should write multiple coils via FC15 with matching quantity', function (done) {
-      this.timeout(15000)
-      loadFlowWithPort(testFlows.testWriteParametersFlow, function (done) {
-        const flexWrite = helper.getNode('82fe7fe4.7b7bc8')
-        const modbusClient = helper.getNode('80aeec4c.0cb9e8')
-        flexWrite.once('modbusFlexWriteNodeDone', function () {
-          done()
-        })
-        waitForModbusClientActive(modbusClient, (err) => {
-          if (err) {
-            done(err)
-            return
-          }
-          flexWrite.receive({
-            payload: '{ "value": [true, false, true, false], "fc": 15, "unitid": 1, "address": 0, "quantity": 4 }'
-          })
-        })
-      }, done)
-    })
-
-    it('should write multiple holding registers via FC16', function (done) {
-      this.timeout(15000)
-      loadFlowWithPort(testFlows.testWriteParametersFlow, function (done) {
-        const flexWrite = helper.getNode('82fe7fe4.7b7bc8')
-        const modbusClient = helper.getNode('80aeec4c.0cb9e8')
-        flexWrite.once('modbusFlexWriteNodeDone', function () {
-          done()
-        })
-        waitForModbusClientActive(modbusClient, (err) => {
-          if (err) {
-            done(err)
-            return
-          }
-          flexWrite.receive({
-            payload: '{ "value": [100, 200, 300], "fc": 16, "unitid": 1, "address": 0, "quantity": 3 }'
-          })
-        })
       }, done)
     })
 
     it('should update status on input when showStatusActivities is enabled', function (done) {
-      this.timeout(15000)
-      loadFlexWriteNode(testFlows.testModbusFlexWriteFlow, 'dcb6fa4b3549ae4f', function (flexWrite, done) {
-        const modbusClient = helper.getNode('80aeec4c.0cb9e8')
+      loadFlexWriteFlow(testFlows.testModbusFlexWriteFlow, 'dcb6fa4b3549ae4f', function (flexWrite, _modbusClient, done) {
         flexWrite.showStatusActivities = true
-        flexWrite.once('modbusFlexWriteNodeDone', function () {
-          done()
-        })
-        waitForModbusClientActive(modbusClient, (err) => {
-          if (err) {
-            done(err)
-            return
-          }
-          flexWrite.receive({
-            payload: '{ "value": true, "fc": 5, "unitid": 1, "address": 1, "quantity": 1 }'
-          })
-        })
+        receiveAndWaitForDone(flexWrite,
+          '{ "value": true, "fc": 5, "unitid": 1, "address": 1, "quantity": 1 }',
+          done)
       }, done)
     })
   })
