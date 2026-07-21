@@ -35,13 +35,23 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     if: github.ref == 'refs/heads/master'
+    # OIDC Trusted Publishing — classic NPM_TOKEN was revoked by npm (Dec 2025).
+    # Configure on npmjs.com → package → Settings → Trusted Publisher:
+    #   Organization: BiancoRoyal
+    #   Repository: node-red-contrib-modbus
+    #   Workflow filename: build.yml
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
+          # npm Trusted Publishing: Node >= 22.14, npm >= 11.5.1
           node-version: 22
+      - run: npm install -g npm@latest
       - run: npm install
       - run: npm run test:ci
-      - uses: JS-DevTools/npm-publish@v1
-        with:
-          token: ${{ secrets.NPM_TOKEN }}
+      - run: npm run build
+      # Do NOT set NODE_AUTH_TOKEN — empty/legacy tokens bypass OIDC and yield E404.
+      - run: npm publish --access public
