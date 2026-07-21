@@ -19,13 +19,45 @@ const testNodes = [catchNode, injectNode, functionNode, clientNode, serverNode, 
 
 const CI_TEST_TIMEOUT_MS = process.env.CI ? 120000 : 30000
 const CLIENT_ACTIVE_WAIT_MS = process.env.CI ? 45000 : 15000
-const POST_LOAD_SETTLE_MS = process.env.CI ? 1500 : 300
+const POST_LOAD_SETTLE_MS = process.env.CI ? 800 : 200
 const WRITE_DONE_TIMEOUT_MS = process.env.CI ? 30000 : 15000
 const INTER_WRITE_DELAY_MS = process.env.CI ? 250 : 0
 
+let flowSeq = 0
+
 function prepareFlow (flowTemplate) {
-  const flow = Array.from(flowTemplate)
+  const flow = JSON.parse(JSON.stringify(flowTemplate))
+  const suffix = '-' + Date.now().toString(36) + '-' + (++flowSeq)
+  const idMap = {}
+
   for (const node of flow) {
+    if (!node || !node.id) {
+      continue
+    }
+    const nextId = node.id + suffix
+    idMap[node.id] = nextId
+    node.id = nextId
+  }
+
+  for (const node of flow) {
+    if (!node) {
+      continue
+    }
+    if (node.server && idMap[node.server]) {
+      node.server = idMap[node.server]
+    }
+    if (Array.isArray(node.wires)) {
+      node.wires = node.wires.map((outputs) => {
+        if (!Array.isArray(outputs)) {
+          return outputs
+        }
+        return outputs.map((targetId) => idMap[targetId] || targetId)
+      })
+    }
+    if (node.scope && Array.isArray(node.scope)) {
+      node.scope = node.scope.map((targetId) => idMap[targetId] || targetId)
+    }
+
     if (node.type === 'modbus-flex-write') {
       node.delayOnStart = false
       node.startDelayTime = 1
@@ -34,20 +66,17 @@ function prepareFlow (flowTemplate) {
       // Flow fixtures use clientTimeout=100ms — too tight under parallel CI load.
       node.clientTimeout = process.env.CI ? 5000 : 2000
       node.commandDelay = process.env.CI ? 50 : 1
-      node.reconnectOnTimeout = false
-      node.tcpAlwaysReconnect = false
-      node.reconnectTimeout = 2000
+      node.reconnectOnTimeout = true
+      node.tcpAlwaysReconnect = true
+      node.reconnectTimeout = process.env.CI ? 1000 : 500
+      node.serialConnectionDelay = 100
     }
     if (node.type === 'modbus-server') {
       node.responseDelay = process.env.CI ? 20 : (node.responseDelay || 50)
     }
   }
-  return flow
-}
 
-function getFlowClientId (flow) {
-  const client = flow.find((n) => n.type === 'modbus-client')
-  return client ? client.id : null
+  return { flow, idMap }
 }
 
 function waitForFlexWriteReady (flexWrite, modbusClient, maxWaitMs, callback) {
@@ -61,9 +90,11 @@ function waitForFlexWriteReady (flexWrite, modbusClient, maxWaitMs, callback) {
       return
     }
     if (Date.now() >= deadline) {
+      const state = modbusClient && modbusClient.actualServiceState && modbusClient.actualServiceState.value
       callback(new Error(
         'flex-write not ready within ' + maxWaitMs + 'ms' +
         ' (delayOccured=' + flexWrite.delayOccured +
+        ', state=' + state +
         ', clientActive=' + !!(modbusClient && modbusClient.isActive && modbusClient.isActive()) + ')'
       ))
       return
@@ -73,34 +104,74 @@ function waitForFlexWriteReady (flexWrite, modbusClient, maxWaitMs, callback) {
   poll()
 }
 
+function nudgeClientConnect (modbusClient) {
+  if (!modbusClient || typeof modbusClient.connectClient !== 'function') {
+    return
+  }
+  const state = modbusClient.actualServiceState && modbusClient.actualServiceState.value
+  if (state === 'init' || state === 'closed' || state === 'failed' || state === 'broken') {
+    try {
+      modbusClient.connectClient()
+    } catch (err) {
+      // ignore — waitForModbusClientActive still owns the timeout
+    }
+  }
+}
+
 function loadFlexWriteFlow (flowTemplate, nodeId, onReady, done) {
-  const flow = prepareFlow(flowTemplate)
+  const prepared = prepareFlow(flowTemplate)
+  const flow = prepared.flow
+  const flexWriteId = prepared.idMap[nodeId] || nodeId
   const clientConfig = flow.find((n) => n.type === 'modbus-client')
   const server = flow.find((n) => n.type === 'modbus-server')
-  const clientId = getFlowClientId(flow)
+  const clientId = clientConfig ? clientConfig.id : null
 
   const load = () => {
     helper.load(testNodes, flow, function () {
       setTimeout(function () {
-        const flexWrite = helper.getNode(nodeId)
+        const flexWrite = helper.getNode(flexWriteId)
         const modbusClient = clientId ? helper.getNode(clientId) : null
         if (!flexWrite || !modbusClient) {
           done(new Error('flex-write or modbus-client node missing after load'))
           return
         }
-        waitForModbusClientActive(modbusClient, (err) => {
-          if (err) {
-            done(err)
+
+        let started = false
+        const onActive = () => {
+          if (started) {
             return
           }
-          waitForFlexWriteReady(flexWrite, modbusClient, CLIENT_ACTIVE_WAIT_MS, (readyErr) => {
+          started = true
+          modbusClient.removeListener('mbactive', onActive)
+          waitForFlexWriteReady(flexWrite, modbusClient, 5000, (readyErr) => {
             if (readyErr) {
               done(readyErr)
               return
             }
             onReady(flexWrite, modbusClient, done)
           })
+        }
+
+        modbusClient.once('mbactive', onActive)
+        nudgeClientConnect(modbusClient)
+
+        waitForModbusClientActive(modbusClient, (err) => {
+          if (err) {
+            modbusClient.removeListener('mbactive', onActive)
+            if (!started) {
+              done(err)
+            }
+            return
+          }
+          onActive()
         }, CLIENT_ACTIVE_WAIT_MS)
+
+        // Under CI the first TCP attempt can race the server bind — retry once.
+        setTimeout(function () {
+          if (!started && (!modbusClient.isActive || !modbusClient.isActive())) {
+            nudgeClientConnect(modbusClient)
+          }
+        }, process.env.CI ? 2500 : 1000)
       }, POST_LOAD_SETTLE_MS)
     })
   }
@@ -154,7 +225,6 @@ function receiveAndWaitForDone (flexWrite, modbusClient, payload, done) {
       finish(err)
       return
     }
-    // Silent drop in flex-write input when not ready — fail fast instead of hanging.
     if (typeof flexWrite.isNotReadyForInput === 'function' && flexWrite.isNotReadyForInput()) {
       finish(new Error('flex-write rejected input (not ready) for payload: ' + payload))
       return
@@ -187,7 +257,9 @@ describe('Flex Write Coverage — functional Modbus writes', function () {
   })
 
   describe('functional writes against modbus-server', function () {
-    it('should write FC5, FC6, FC15 and FC16 in one loaded flow', function (done) {
+    // One flow only: a second helper.load with the same config-node id left the
+    // client stuck in FSM state=init under parallel CI (hasClient=true, never active).
+    it('should write FC5–16 and update status activities in one loaded flow', function (done) {
       loadFlexWriteFlow(testFlows.testWriteParametersFlow, '82fe7fe4.7b7bc8', function (flexWrite, modbusClient, done) {
         receiveAndWaitForDone(flexWrite, modbusClient,
           '{ "value": true, "fc": 5, "unitid": 1, "address": 0, "quantity": 1 }',
@@ -200,19 +272,15 @@ describe('Flex Write Coverage — functional Modbus writes', function () {
                   function () {
                     receiveAndWaitForDone(flexWrite, modbusClient,
                       '{ "value": [100, 200, 300], "fc": 16, "unitid": 1, "address": 0, "quantity": 3 }',
-                      done)
+                      function () {
+                        flexWrite.showStatusActivities = true
+                        receiveAndWaitForDone(flexWrite, modbusClient,
+                          '{ "value": true, "fc": 5, "unitid": 1, "address": 1, "quantity": 1 }',
+                          done)
+                      })
                   })
               })
           })
-      }, done)
-    })
-
-    it('should update status on input when showStatusActivities is enabled', function (done) {
-      loadFlexWriteFlow(testFlows.testModbusFlexWriteFlow, 'dcb6fa4b3549ae4f', function (flexWrite, modbusClient, done) {
-        flexWrite.showStatusActivities = true
-        receiveAndWaitForDone(flexWrite, modbusClient,
-          '{ "value": true, "fc": 5, "unitid": 1, "address": 1, "quantity": 1 }',
-          done)
       }, done)
     })
   })
