@@ -36,10 +36,12 @@ jobs:
     needs: build
     if: github.ref == 'refs/heads/master'
     # OIDC Trusted Publishing — classic NPM_TOKEN was revoked by npm (Dec 2025).
-    # Configure on npmjs.com → package → Settings → Trusted Publisher:
-    #   Organization: BiancoRoyal
+    # REQUIRED once on https://www.npmjs.com/package/node-red-contrib-modbus/access
+    # → Trusted Publisher → GitHub Actions:
+    #   Organization or user: BiancoRoyal
     #   Repository: node-red-contrib-modbus
     #   Workflow filename: build.yml
+    #   Allowed actions: npm publish
     permissions:
       id-token: write
       contents: read
@@ -47,11 +49,23 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          # npm Trusted Publishing: Node >= 22.14, npm >= 11.5.1
-          node-version: 22
-      - run: npm install -g npm@latest
+          # Trusted Publishing: Node >= 22.14, npm >= 11.5.1
+          node-version: 24
+      - name: Ensure npm supports OIDC trusted publishing
+        run: |
+          npm install -g npm@latest
+          npm --version
+          node --version
+          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
+            echo "ACTIONS_ID_TOKEN_REQUEST_URL missing — id-token: write did not take effect"
+            exit 1
+          fi
+          echo "OIDC token request URL is present"
       - run: npm install
       - run: npm run test:ci
       - run: npm run build
-      # Do NOT set NODE_AUTH_TOKEN — empty/legacy tokens bypass OIDC and yield E404.
-      - run: npm publish --access public
+      # Never set NODE_AUTH_TOKEN here — empty/legacy tokens bypass OIDC → ENEEDAUTH/E404.
+      - name: Publish to npm (OIDC)
+        run: |
+          unset NODE_AUTH_TOKEN NPM_TOKEN
+          npm publish --access public

@@ -13,10 +13,11 @@ const expect = chai.expect
 const { installCoreClientSandboxHooks } = require('./modbus-client-core-test-helper')
 
 describe('Core Client Actions Testing', function () {
-  installCoreClientSandboxHooks(this)
+  const getSandbox = installCoreClientSandboxHooks(this)
 
   describe('Core Client', function () {
     it('should call activateSendingOnFailure on quantity mismatch', function (done) {
+      const sandbox = getSandbox()
       const node = {
         client: {
           writeRegisters: sinon.stub().resolves('success'),
@@ -34,8 +35,8 @@ describe('Core Client Actions Testing', function () {
       const cb = sinon.stub()
       const cberr = sinon.stub()
 
-      coreClientUnderTest.activateSendingOnSuccess = sinon.stub()
-      coreClientUnderTest.activateSendingOnFailure = sinon.stub()
+      sandbox.stub(coreClientUnderTest, 'activateSendingOnSuccess')
+      sandbox.stub(coreClientUnderTest, 'activateSendingOnFailure')
       node.modbusErrorHandling = sinon.stub()
       coreClientUnderTest.writeModbusByFunctionCodeSixteen(node, msg, cb, cberr)
       sinon.assert.notCalled(node.client.writeRegisters)
@@ -333,6 +334,7 @@ describe('Core Client Actions Testing', function () {
       sinon.assert.calledWith(node.client.sendCustomFc, 2, 4, {}, {})
     })
     it('should handle client ID zero by constructing a response and calling activateSendingOnSuccess', async function () {
+      const sandbox = getSandbox()
       const node = {
         client: {
           writeRegister: sinon.stub().rejects(new Error('Test Error')),
@@ -347,12 +349,13 @@ describe('Core Client Actions Testing', function () {
       }
       const cb = sinon.stub()
       const cberr = sinon.stub()
-      coreClientUnderTest.activateSendingOnSuccess = sinon.stub()
+      sandbox.stub(coreClientUnderTest, 'activateSendingOnSuccess')
       coreClientUnderTest.writeModbusByFunctionCodeSix(node, msg, cb, cberr)
       sinon.assert.notCalled(coreClientUnderTest.activateSendingOnSuccess)
     })
 
     it('should handle when the client port is not readable and connection fails', () => {
+      const sandbox = getSandbox()
       const node = {
         client: {
           _port: {
@@ -374,12 +377,14 @@ describe('Core Client Actions Testing', function () {
       const cb = sinon.stub()
       const cberr = sinon.stub()
 
+      sandbox.stub(coreClientUnderTest, 'activateSendingOnFailure')
       coreClientUnderTest.customModbusMessage(node, msg, cb, cberr)
 
       sinon.assert.calledOnce(node.connectClient)
       sinon.assert.notCalled(node.stateService.send)
     })
     it('should handle when the client port is not readable and connection fails', () => {
+      const sandbox = getSandbox()
       let node = {
         client: {
           _port: {
@@ -413,7 +418,7 @@ describe('Core Client Actions Testing', function () {
       let msg = {}
       let cb = sinon.spy()
       let cberr = sinon.spy()
-      coreClientUnderTest.activateSendingOnFailure = sinon.spy()
+      sandbox.stub(coreClientUnderTest, 'activateSendingOnFailure')
       const clock3 = useFakeTimers(sinon)
 
       coreClientUnderTest.customModbusMessage(node, msg, cb, cberr)
@@ -472,6 +477,7 @@ describe('Core Client Actions Testing', function () {
     })
 
     it('should call readModbusByFunctionCodeOne for function code 1', () => {
+      const sandbox = getSandbox()
       const node = {
         clienttype: 'serial',
         client: {
@@ -488,7 +494,7 @@ describe('Core Client Actions Testing', function () {
       const msg = { payload: { fc: 1 } }
       const cb = sinon.spy()
       const cberr = sinon.spy()
-      sinon.stub(coreClientUnderTest, 'readModbusByFunctionCodeOne')
+      sandbox.stub(coreClientUnderTest, 'readModbusByFunctionCodeOne')
       const clock = useFakeTimers(sinon)
 
       coreClientUnderTest.readModbus(node, msg, cb, cberr)
@@ -496,10 +502,10 @@ describe('Core Client Actions Testing', function () {
 
       sinon.assert.calledWith(coreClientUnderTest.readModbusByFunctionCodeOne, node, msg, cb, cberr)
       clock.restore()
-      coreClientUnderTest.readModbusByFunctionCodeOne.restore()
     })
 
     it('should process function code 16 when node client is ready and writable', (done) => {
+      const sandbox = getSandbox()
       const node = {
         clienttype: 'serial',
         client: {
@@ -516,7 +522,7 @@ describe('Core Client Actions Testing', function () {
       const msg = { payload: { fc: 16, address: 123, quantity: 1 } }
       const cb = sinon.spy()
       const cberr = sinon.spy()
-      sinon.stub(coreClientUnderTest, 'writeModbusByFunctionCodeSixteen')
+      sandbox.stub(coreClientUnderTest, 'writeModbusByFunctionCodeSixteen')
 
       const clock = useFakeTimers(sinon)
       coreClientUnderTest.writeModbus(node, msg, cb, cberr)
@@ -527,6 +533,7 @@ describe('Core Client Actions Testing', function () {
     })
 
     it('should call writeModbusByFunctionCodeSix for function code 6', () => {
+      const sandbox = getSandbox()
       const node = {
         client: {
           _port: { _client: { writable: true } },
@@ -546,8 +553,8 @@ describe('Core Client Actions Testing', function () {
       const cberr = sinon.spy()
       const nodeLog = sinon.spy()
 
-      sinon.stub(coreClientUnderTest, 'getLogFunction').returns(nodeLog)
-      sinon.stub(coreClientUnderTest, 'writeModbusByFunctionCodeSix')
+      sandbox.stub(coreClientUnderTest, 'getLogFunction').returns(nodeLog)
+      sandbox.stub(coreClientUnderTest, 'writeModbusByFunctionCodeSix')
 
       const clock = useFakeTimers(sinon)
       coreClientUnderTest.writeModbus(node, msg, cb, cberr)
@@ -559,6 +566,7 @@ describe('Core Client Actions Testing', function () {
     })
 
     it('should activate sending on failure with error "Function Code Unknown" for unknown function code', async () => {
+      const sandbox = getSandbox()
       const node = {
         client: { setTimeout: sinon.spy() },
         clienttype: 'serial',
@@ -576,8 +584,8 @@ describe('Core Client Actions Testing', function () {
       const cb = sinon.spy()
       const cberr = sinon.spy()
       const nodeLog = sinon.spy()
-      coreClientUnderTest.getLogFunction = sinon.stub().returns(nodeLog)
-      coreClientUnderTest.activateSendingOnFailure = sinon.spy()
+      sandbox.stub(coreClientUnderTest, 'getLogFunction').returns(nodeLog)
+      sandbox.stub(coreClientUnderTest, 'activateSendingOnFailure')
 
       coreClientUnderTest.writeModbus(node, msg, cb, cberr)
       clock.tick(1)
@@ -595,24 +603,27 @@ describe('Core Client Actions Testing', function () {
     })
 
     it('should log Serial settings when connectorType is SERIAL', () => {
+      const sandbox = getSandbox()
       const node = { serialPort: '/dev/ttyUSB0', serialBaudrate: 9600, serialType: 'RTU' }
       const msg = { payload: { connectorType: 'SERIAL' } }
       const nodeLog = sinon.spy()
-      coreClientUnderTest.getLogFunction = sinon.stub().returns(nodeLog)
+      sandbox.stub(coreClientUnderTest, 'getLogFunction').returns(nodeLog)
       coreClientUnderTest.setNewNodeSettings(node, msg)
       sinon.assert.calledWith(nodeLog, 'New Connection Serial Settings /dev/ttyUSB0 9600 RTU')
     })
 
     it('should log an error when connectorType is unknown', () => {
+      const sandbox = getSandbox()
       const node = { tcpHost: '127.0.0.1', tcpPort: 502, tcpType: 'MODBUS-TCP' }
       const msg = { payload: { connectorType: 'UNKNOWN' } }
       const nodeLog = sinon.spy()
-      coreClientUnderTest.getLogFunction = sinon.stub().returns(nodeLog)
+      sandbox.stub(coreClientUnderTest, 'getLogFunction').returns(nodeLog)
       coreClientUnderTest.setNewNodeSettings(node, msg)
       sinon.assert.calledWith(nodeLog, 'Unknown Dynamic Reconnect Type UNKNOWN')
     })
 
     it('should reconnect and process write command when node client is not writable', (done) => {
+      const sandbox = getSandbox()
       const node = {
         client: {
           _port: {
@@ -632,7 +643,7 @@ describe('Core Client Actions Testing', function () {
       const cb = sinon.spy()
       const cberr = sinon.spy()
       const clock = useFakeTimers(sinon)
-      coreClientUnderTest.activateSendingOnFailure = sinon.spy()
+      sandbox.stub(coreClientUnderTest, 'activateSendingOnFailure')
 
       coreClientUnderTest.writeModbus(node, msg, cb, cberr)
 
@@ -644,11 +655,12 @@ describe('Core Client Actions Testing', function () {
     })
 
     it('should return false and log an error when msg is null', () => {
+      const sandbox = getSandbox()
       const node = {}
       const msg = null
       const nodeLog = sinon.spy()
 
-      coreClientUnderTest.getLogFunction = sinon.stub().returns(nodeLog)
+      sandbox.stub(coreClientUnderTest, 'getLogFunction').returns(nodeLog)
 
       coreClientUnderTest.setNewNodeSettings(node, msg)
 
@@ -704,6 +716,7 @@ describe('Core Client Actions Testing', function () {
   })
   describe('modbusClient.writeModbus', function () {
     it('should log an error if node.client is not ready', function (done) {
+      const sandbox = getSandbox()
       const node = {
         client: null,
         clienttype: 'tcp',
@@ -723,9 +736,9 @@ describe('Core Client Actions Testing', function () {
       }
       const cb = sinon.stub()
       const cberr = sinon.stub()
-      coreClientUnderTest.activateSendingOnFailure = sinon.stub()
+      sandbox.stub(coreClientUnderTest, 'activateSendingOnFailure')
       const mockNodeLog = sinon.stub()
-      coreClientUnderTest.getLogFunction = sinon.stub().returns(mockNodeLog)
+      sandbox.stub(coreClientUnderTest, 'getLogFunction').returns(mockNodeLog)
 
       coreClientUnderTest.writeModbus(node, msg, cb, cberr)
       sinon.assert.calledOnce(mockNodeLog)
@@ -736,6 +749,7 @@ describe('Core Client Actions Testing', function () {
     })
 
     it('should call writeModbusByFunctionCodeFifteen on FC 15', function (done) {
+      const sandbox = getSandbox()
       const node = {
         client: {
           _port: {
@@ -763,24 +777,19 @@ describe('Core Client Actions Testing', function () {
       }
       const cb = sinon.stub()
       const cberr = sinon.stub()
-      const origFifteen = coreClientUnderTest.writeModbusByFunctionCodeFifteen
-      const origFailure = coreClientUnderTest.activateSendingOnFailure
-      const origLogFn = coreClientUnderTest.getLogFunction
-      coreClientUnderTest.writeModbusByFunctionCodeFifteen = sinon.stub()
-      coreClientUnderTest.activateSendingOnFailure = sinon.stub()
+      sandbox.stub(coreClientUnderTest, 'writeModbusByFunctionCodeFifteen')
+      sandbox.stub(coreClientUnderTest, 'activateSendingOnFailure')
       const mockNodeLog = sinon.stub()
-      coreClientUnderTest.getLogFunction = sinon.stub().returns(mockNodeLog)
+      sandbox.stub(coreClientUnderTest, 'getLogFunction').returns(mockNodeLog)
       coreClientUnderTest.writeModbus(node, msg, cb, cberr)
       setTimeout(function () {
         sinon.assert.notCalled(coreClientUnderTest.activateSendingOnFailure)
         sinon.assert.notCalled(mockNodeLog)
-        coreClientUnderTest.writeModbusByFunctionCodeFifteen = origFifteen
-        coreClientUnderTest.activateSendingOnFailure = origFailure
-        coreClientUnderTest.getLogFunction = origLogFn
         done()
       }, 20)
     })
     it('should call activateSendingOnFailure and nodeLog on error', function (done) {
+      const sandbox = getSandbox()
       const node = {
         client: {
           _port: {
@@ -809,25 +818,20 @@ describe('Core Client Actions Testing', function () {
       const cb = sinon.stub()
       const cberr = sinon.stub()
 
-      const origFive = coreClientUnderTest.writeModbusByFunctionCodeFive
-      const origFailure = coreClientUnderTest.activateSendingOnFailure
-      const origLogFn = coreClientUnderTest.getLogFunction
-      coreClientUnderTest.writeModbusByFunctionCodeFive = sinon.stub().throws(new Error('Test Error'))
-      coreClientUnderTest.activateSendingOnFailure = sinon.stub()
+      sandbox.stub(coreClientUnderTest, 'writeModbusByFunctionCodeFive').throws(new Error('Test Error'))
+      sandbox.stub(coreClientUnderTest, 'activateSendingOnFailure')
       const mockNodeLog = sinon.stub()
-      coreClientUnderTest.getLogFunction = sinon.stub().returns(mockNodeLog)
+      sandbox.stub(coreClientUnderTest, 'getLogFunction').returns(mockNodeLog)
 
       coreClientUnderTest.writeModbus(node, msg, cb, cberr)
 
       setTimeout(function () {
-        coreClientUnderTest.writeModbusByFunctionCodeFive = origFive
-        coreClientUnderTest.activateSendingOnFailure = origFailure
-        coreClientUnderTest.getLogFunction = origLogFn
         done()
       }, 20)
     })
   })
   it('should call activateSendingOnFailure when client connection fails', () => {
+    const sandbox = getSandbox()
     const node = {
       client: {
         _port: {
@@ -841,10 +845,9 @@ describe('Core Client Actions Testing', function () {
     const msg = { payload: 'test' }
     const cb = sinon.spy()
     const cberr = sinon.spy()
-    sinon.stub(coreClientUnderTest, 'activateSendingOnFailure')
+    sandbox.stub(coreClientUnderTest, 'activateSendingOnFailure')
 
     coreClientUnderTest.readModbus(node, msg, cb, cberr)
     sinon.assert.calledWith(coreClientUnderTest.activateSendingOnFailure, node, cberr, sinon.match.instanceOf(Error), msg)
-    coreClientUnderTest.activateSendingOnFailure.restore()
   })
 })

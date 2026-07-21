@@ -106,6 +106,64 @@ function waitForModbusClientActive (client, callback, maxWaitMs = DEFAULT_CLIENT
   poll()
 }
 
+function waitForModbusServerListening (serverNode, callback, maxWaitMs = DEFAULT_CLIENT_ACTIVE_WAIT_MS) {
+  const deadline = Date.now() + maxWaitMs
+  const poll = () => {
+    if (serverNode && serverNode.netServer && serverNode.netServer.listening) {
+      callback()
+      return
+    }
+    if (Date.now() >= deadline) {
+      callback(new Error(
+        'Modbus server not listening within ' + maxWaitMs + 'ms' +
+        ' (hasNetServer=' + !!(serverNode && serverNode.netServer) +
+        ', listening=' + !!(serverNode && serverNode.netServer && serverNode.netServer.listening) + ')'
+      ))
+      return
+    }
+    setTimeout(poll, 50)
+  }
+  poll()
+}
+
+/**
+ * Clone a flow and assign ephemeral ports to modbus-server / matching client tcpPort.
+ * Safe under mocha --parallel across worker processes.
+ */
+async function withEphemeralPorts (flowTemplate) {
+  const flow = JSON.parse(JSON.stringify(flowTemplate))
+  const servers = flow.filter((n) => n && n.type === 'modbus-server')
+  const clients = flow.filter((n) => n && n.type === 'modbus-client')
+
+  if (servers.length === 0) {
+    return flow
+  }
+
+  if (servers.length === 1) {
+    const port = await portHelper.getPort()
+    servers[0].serverPort = port
+    for (const client of clients) {
+      client.tcpPort = port
+    }
+    return flow
+  }
+
+  const oldToNew = new Map()
+  for (const server of servers) {
+    const oldPort = String(server.serverPort)
+    const port = await portHelper.getPort()
+    oldToNew.set(oldPort, port)
+    server.serverPort = port
+  }
+  for (const client of clients) {
+    const mapped = oldToNew.get(String(client.tcpPort))
+    if (mapped != null) {
+      client.tcpPort = mapped
+    }
+  }
+  return flow
+}
+
 module.exports = {
   fakeTimerConfig: { shouldClearNativeTimers: true },
   useFakeTimers: (timerUser) => {
@@ -114,6 +172,8 @@ module.exports = {
   validateFlowFixture,
   deferAfterLoad,
   waitForModbusClientActive,
+  waitForModbusServerListening,
+  withEphemeralPorts,
   isModbusClientReady,
   cleanFlowPositionData: (jsonFlow) => {
     const cleanFlow = []

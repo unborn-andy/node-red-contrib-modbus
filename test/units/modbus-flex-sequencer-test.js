@@ -23,11 +23,19 @@ const testFlexSequencerNodes = [injectNode, clientNode, serverNode, nodeUnderTes
 const testFlows = require('./flows/modbus-flex-sequencer-flows')
 const mBasics = require('../../src/modbus-basics')
 const _ = require('underscore')
+const { withEphemeralPorts } = require('../helper/test-helper-extensions')
 
 // const chai = require('chai')
 const sinon = require('sinon')
 // const expect = chai.expect
 
+function loadFlow (nodes, flowTemplate, callback) {
+  withEphemeralPorts(flowTemplate).then((flow) => {
+    helper.load(nodes, flow, callback)
+  }).catch((err) => {
+    throw err
+  })
+}
 describe('Flex Sequencer node Testing', function () {
   before(function (done) {
     helper.startServer(function () {
@@ -51,7 +59,7 @@ describe('Flex Sequencer node Testing', function () {
 
   describe('Node', function () {
     it('simple Node with server should be loaded', function (done) {
-      helper.load(testFlexSequencerNodes, testFlows.testNodeWithServerFlow, function () {
+      loadFlow(testFlexSequencerNodes, testFlows.testNodeWithServerFlow, function () {
         const modbusServer = helper.getNode('996023fe.ea04b')
         modbusServer.should.have.property('name', 'modbusServer')
 
@@ -66,7 +74,7 @@ describe('Flex Sequencer node Testing', function () {
     })
 
     it('should be inactive if message not allowed', function (done) {
-      helper.load(testFlexSequencerNodes, testFlows.testNodeWithServerFlow, function () {
+      loadFlow(testFlexSequencerNodes, testFlows.testNodeWithServerFlow, function () {
         const modbusClientNode = helper.getNode('92e7bf63.2efd7')
         _.isUndefined(modbusClientNode).should.be.false()
 
@@ -80,7 +88,7 @@ describe('Flex Sequencer node Testing', function () {
     it('should be inactive if message empty', function (done) {
       const flow = Array.from(testFlows.testNodeWithServerFlow)
       flow[2].serverPort = '50201'
-      helper.load(testFlexSequencerNodes, flow, function () {
+      loadFlow(testFlexSequencerNodes, flow, function () {
         const modbusClientNode = helper.getNode('92e7bf63.2efd7')
         setTimeout(() => {
           modbusClientNode.messageAllowedStates = ['']
@@ -93,7 +101,7 @@ describe('Flex Sequencer node Testing', function () {
 
     it('should be not state queueing - not ready to send', function (done) {
       const flow = Array.from(testFlows.testNodeWithServerFlow)
-      helper.load(testFlexSequencerNodes, flow, function () {
+      loadFlow(testFlexSequencerNodes, flow, function () {
         const modbusClientNode = helper.getNode('92e7bf63.2efd7')
         setTimeout(() => {
           mBasics.setNodeStatusTo('stopped', modbusClientNode)
@@ -105,7 +113,7 @@ describe('Flex Sequencer node Testing', function () {
     })
 
     it('prepareMessage will convert a message in string format into a unified format', function (done) {
-      helper.load(testFlexSequencerNodes, testFlows.testNodeWithServerFlow, function () {
+      loadFlow(testFlexSequencerNodes, testFlows.testNodeWithServerFlow, function () {
         setTimeout(() => {
           const flexSequencer = helper.getNode('bc5a61b6.a3972')
           const result = flexSequencer.prepareMsg('{ "fc": 1, "unitid": 1, "address": 0, "quantity": 1 }')
@@ -120,7 +128,7 @@ describe('Flex Sequencer node Testing', function () {
     })
 
     it('prepareMessage will convert a message in json format into a unified format', function (done) {
-      helper.load(testFlexSequencerNodes, testFlows.testNodeWithServerFlow, function () {
+      loadFlow(testFlexSequencerNodes, testFlows.testNodeWithServerFlow, function () {
         setTimeout(() => {
           const flexSequencer = helper.getNode('bc5a61b6.a3972')
 
@@ -137,7 +145,7 @@ describe('Flex Sequencer node Testing', function () {
     })
 
     it('the user  has the option to input function code strings "FC1,FC2, FC3,FC4" and these will be converted into the right values', function (done) {
-      helper.load(testFlexSequencerNodes, testFlows.testNodeWithServerFlow, function () {
+      loadFlow(testFlexSequencerNodes, testFlows.testNodeWithServerFlow, function () {
         setTimeout(() => {
           const flexSequencer = helper.getNode('bc5a61b6.a3972')
           const message = { fc: 1, unitid: 1, address: 0, quantity: 1 }
@@ -156,7 +164,7 @@ describe('Flex Sequencer node Testing', function () {
     })
 
     it('should handle different function codes', function (done) {
-      helper.load(testFlexSequencerNodes, testFlows.testNodeWithServerFlow, function () {
+      loadFlow(testFlexSequencerNodes, testFlows.testNodeWithServerFlow, function () {
         const flexSequencer = helper.getNode('bc5a61b6.a3972')
         const message = {
           fc: 3,
@@ -182,7 +190,7 @@ describe('Flex Sequencer node Testing', function () {
     })
 
     it('isValidModbusMessage checks if the passed message is actually valid', function (done) {
-      helper.load(testFlexSequencerNodes, testFlows.testNodeWithServerFlow, function () {
+      loadFlow(testFlexSequencerNodes, testFlows.testNodeWithServerFlow, function () {
         setTimeout(() => {
           const flexSequencer = helper.getNode('bc5a61b6.a3972')
           const validModbusMessage = { fc: 1, unitid: 1, address: 0, quantity: 1 }
@@ -207,7 +215,7 @@ describe('Flex Sequencer node Testing', function () {
     })
 
     it('should handle different function codes', function (done) {
-      helper.load(testFlexSequencerNodes, testFlows.testNodeWithServerFlow, function () {
+      loadFlow(testFlexSequencerNodes, testFlows.testNodeWithServerFlow, function () {
         const flexSequencer = helper.getNode('bc5a61b6.a3972')
         const message = {
           fc: 3,
@@ -233,7 +241,7 @@ describe('Flex Sequencer node Testing', function () {
     })
 
     it('should build a new message object correctly', function (done) {
-      helper.load(testFlexSequencerNodes, testFlows.testNodeWithServerFlow, function () {
+      loadFlow(testFlexSequencerNodes, testFlows.testNodeWithServerFlow, function () {
         const flexSequencer = helper.getNode('bc5a61b6.a3972')
 
         const msg = {
@@ -263,7 +271,7 @@ describe('Flex Sequencer node Testing', function () {
     })
 
     it('should reset the input delay timer, log a warning, and set a timeout when delayOnStart is true', async function () {
-      //   await helper.load(testFlexSequencerNodes, testFlows.testNodeWithInjectNodeFlow)
+      //   await loadFlow(testFlexSequencerNodes, testFlows.testNodeWithInjectNodeFlow)
       //   const flexSequencerNode = helper.getNode('42c7ed2cf52e284e')
 
       //   flexSequencerNode.delayOnStart = true
@@ -284,7 +292,7 @@ describe('Flex Sequencer node Testing', function () {
     })
 
     it('should send a message with IO data and emit an event when Modbus read is done', function (done) {
-      helper.load(testFlexSequencerNodes, testFlows.testNodeWithInjectNodeFlow, function () {
+      loadFlow(testFlexSequencerNodes, testFlows.testNodeWithInjectNodeFlow, function () {
         const flexSequencerNode = helper.getNode('42c7ed2cf52e284e')
 
         const resp = { data: [1, 2, 3], someOtherData: 'test' }
@@ -300,7 +308,7 @@ describe('Flex Sequencer node Testing', function () {
 
   describe('post', function () {
     it('should fail for invalid node', function (done) {
-      helper.load(testFlexSequencerNodes, testFlows.testNodeWithServerFlow, function () {
+      loadFlow(testFlexSequencerNodes, testFlows.testNodeWithServerFlow, function () {
         helper.request().post('/modbus-flex-sequencer/invalid').expect(404).end(done)
       })
     })

@@ -22,6 +22,15 @@ helper.init(require.resolve('node-red'))
 
 const testFlows = require('./flows/modbus-read-flows')
 const mBasics = require('../../src/modbus-basics')
+const { withEphemeralPorts } = require('../helper/test-helper-extensions')
+
+function loadReadFlow (nodes, flowTemplate, callback) {
+  withEphemeralPorts(flowTemplate).then((flow) => {
+    helper.load(nodes, flow, callback)
+  }).catch((err) => {
+    throw err
+  })
+}
 
 describe('Read node Testing', function () {
   before(function (done) {
@@ -54,7 +63,7 @@ describe('Read node Testing', function () {
     })
 
     it('simple Node should be loaded', function (done) {
-      helper.load(testReadNodes, testFlows.testReadWithClientFlow, function () {
+      loadReadFlow(testReadNodes, testFlows.testReadWithClientFlow, function () {
         const modbusServer = helper.getNode('b071294594e37a6c')
         modbusServer.should.have.property('name', 'modbusServer')
 
@@ -91,7 +100,7 @@ describe('Read node Testing', function () {
     })
 
     it('the read node should log a warning when it receives an error with onModbusError', function (done) {
-      helper.load(testReadNodes, testFlows.testReadWithClientFlow, function () {
+      loadReadFlow(testReadNodes, testFlows.testReadWithClientFlow, function () {
         const readNode = helper.getNode('09846c74de630616')
         readNode.showErrors = true
         let mockMessage = ''
@@ -103,7 +112,7 @@ describe('Read node Testing', function () {
     })
 
     it('the read node can log with node.warn when node.verboseLogging and node.showErrors are true', function (done) {
-      helper.load(testReadNodes, testFlows.testReadWithClientFlow, function () {
+      loadReadFlow(testReadNodes, testFlows.testReadWithClientFlow, function () {
         const readNode = helper.getNode('09846c74de630616')
         readNode.verboseLogging = true
         readNode.showErrors = true
@@ -117,7 +126,7 @@ describe('Read node Testing', function () {
     })
 
     it('onModbusReadError should call errorProtcolMessage and log a message when node.showError is true', function (done) {
-      helper.load(testReadNodes, testFlows.testReadWithClientFlow, function () {
+      loadReadFlow(testReadNodes, testFlows.testReadWithClientFlow, function () {
         const readNode = helper.getNode('09846c74de630616')
         readNode.verboseLogging = true
         readNode.showErrors = true
@@ -138,7 +147,7 @@ describe('Read node Testing', function () {
     })
 
     it('verbosewarn should log a message when the verbosity level and showWarnings are enabled', function (done) {
-      helper.load(testReadNodes, testFlows.testReadWithClientFlow, function () {
+      loadReadFlow(testReadNodes, testFlows.testReadWithClientFlow, function () {
         const readNode = helper.getNode('09846c74de630616')
 
         readNode.verboseLogging = true
@@ -157,19 +166,19 @@ describe('Read node Testing', function () {
 
   describe('post', function () {
     it('should fail for invalid node', function (done) {
-      helper.load([clientNode, serverNode, readNode], testFlows.testReadWithClientFlow, function () {
+      loadReadFlow([clientNode, serverNode, readNode], testFlows.testReadWithClientFlow, function () {
         helper.request().post('/modbus-read/invalid').expect(404).end(done)
       })
     })
 
     it('should fail for unloaded node', function (done) {
-      helper.load([clientNode, serverNode, readNode], testFlows.testReadWithClientFlow, function () {
+      loadReadFlow([clientNode, serverNode, readNode], testFlows.testReadWithClientFlow, function () {
         helper.request().post('/modbus/read/inject/8ecaae3e.4b8928').expect(404).end(done)
       })
     })
 
     it('should inject on valid node', function (done) {
-      helper.load([clientNode, serverNode, readNode], testFlows.testReadWithClientFlow, function () {
+      loadReadFlow([clientNode, serverNode, readNode], testFlows.testReadWithClientFlow, function () {
         helper.request().post('/modbus/read/inject/09846c74de630616').expect(200).end(done)
       })
     })

@@ -13,14 +13,19 @@ const nodeUnderTest = require('../../src/modbus-flex-write.js')
 const helper = require('node-red-node-test-helper')
 helper.init(require.resolve('node-red'))
 const testFlows = require('./flows/modbus-flex-write-flows')
-const { getPort, waitForModbusClientActive } = require('../helper/test-helper-extensions')
+const {
+  getPort,
+  waitForModbusClientActive,
+  waitForModbusServerListening
+} = require('../helper/test-helper-extensions')
 
 const testNodes = [catchNode, injectNode, functionNode, clientNode, serverNode, nodeUnderTest]
 
-const CI_TEST_TIMEOUT_MS = process.env.CI ? 120000 : 30000
-const CLIENT_ACTIVE_WAIT_MS = process.env.CI ? 45000 : 15000
-const POST_LOAD_SETTLE_MS = process.env.CI ? 800 : 200
-const WRITE_DONE_TIMEOUT_MS = process.env.CI ? 30000 : 15000
+const CI_TEST_TIMEOUT_MS = process.env.CI ? 90000 : 30000
+const CLIENT_ACTIVE_WAIT_MS = process.env.CI ? 30000 : 15000
+const SERVER_LISTEN_WAIT_MS = process.env.CI ? 15000 : 5000
+const POST_LOAD_SETTLE_MS = process.env.CI ? 500 : 100
+const WRITE_DONE_TIMEOUT_MS = process.env.CI ? 20000 : 15000
 const INTER_WRITE_DELAY_MS = process.env.CI ? 250 : 0
 
 let flowSeq = 0
@@ -123,62 +128,78 @@ function loadFlexWriteFlow (flowTemplate, nodeId, onReady, done) {
   const flow = prepared.flow
   const flexWriteId = prepared.idMap[nodeId] || nodeId
   const clientConfig = flow.find((n) => n.type === 'modbus-client')
-  const server = flow.find((n) => n.type === 'modbus-server')
+  const serverConfig = flow.find((n) => n.type === 'modbus-server')
   const clientId = clientConfig ? clientConfig.id : null
+  const serverId = serverConfig ? serverConfig.id : null
 
   const load = () => {
     helper.load(testNodes, flow, function () {
       setTimeout(function () {
         const flexWrite = helper.getNode(flexWriteId)
         const modbusClient = clientId ? helper.getNode(clientId) : null
+        const modbusServer = serverId ? helper.getNode(serverId) : null
         if (!flexWrite || !modbusClient) {
           done(new Error('flex-write or modbus-client node missing after load'))
           return
         }
 
-        let started = false
-        const onActive = () => {
-          if (started) {
-            return
-          }
-          started = true
-          modbusClient.removeListener('mbactive', onActive)
-          waitForFlexWriteReady(flexWrite, modbusClient, 5000, (readyErr) => {
-            if (readyErr) {
-              done(readyErr)
+        const startClientWait = () => {
+          let started = false
+          const onActive = () => {
+            if (started) {
               return
             }
-            onReady(flexWrite, modbusClient, done)
-          })
+            started = true
+            modbusClient.removeListener('mbactive', onActive)
+            waitForFlexWriteReady(flexWrite, modbusClient, 5000, (readyErr) => {
+              if (readyErr) {
+                done(readyErr)
+                return
+              }
+              onReady(flexWrite, modbusClient, done)
+            })
+          }
+
+          modbusClient.once('mbactive', onActive)
+          nudgeClientConnect(modbusClient)
+
+          waitForModbusClientActive(modbusClient, (err) => {
+            if (err) {
+              modbusClient.removeListener('mbactive', onActive)
+              if (!started) {
+                done(err)
+              }
+              return
+            }
+            onActive()
+          }, CLIENT_ACTIVE_WAIT_MS)
+
+          // One reconnect nudge after server should already be listening.
+          setTimeout(function () {
+            if (!started && (!modbusClient.isActive || !modbusClient.isActive())) {
+              nudgeClientConnect(modbusClient)
+            }
+          }, process.env.CI ? 1500 : 500)
         }
 
-        modbusClient.once('mbactive', onActive)
-        nudgeClientConnect(modbusClient)
-
-        waitForModbusClientActive(modbusClient, (err) => {
-          if (err) {
-            modbusClient.removeListener('mbactive', onActive)
-            if (!started) {
-              done(err)
+        if (modbusServer) {
+          waitForModbusServerListening(modbusServer, (listenErr) => {
+            if (listenErr) {
+              done(listenErr)
+              return
             }
-            return
-          }
-          onActive()
-        }, CLIENT_ACTIVE_WAIT_MS)
-
-        // Under CI the first TCP attempt can race the server bind — retry once.
-        setTimeout(function () {
-          if (!started && (!modbusClient.isActive || !modbusClient.isActive())) {
-            nudgeClientConnect(modbusClient)
-          }
-        }, process.env.CI ? 2500 : 1000)
+            startClientWait()
+          }, SERVER_LISTEN_WAIT_MS)
+        } else {
+          startClientWait()
+        }
       }, POST_LOAD_SETTLE_MS)
     })
   }
 
-  if (server && clientConfig) {
+  if (serverConfig && clientConfig) {
     getPort().then((port) => {
-      server.serverPort = port
+      serverConfig.serverPort = port
       clientConfig.tcpPort = port
       load()
     }).catch(done)

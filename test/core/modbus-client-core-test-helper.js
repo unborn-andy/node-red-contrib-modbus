@@ -16,6 +16,7 @@ function installCoreClientSandboxHooks (context) {
       sandbox.restore()
       sandbox = null
     }
+    sinon.restore()
   })
 
   return function getSandbox () {

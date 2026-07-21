@@ -12,7 +12,7 @@ const expect = chai.expect
 const { installCoreClientSandboxHooks } = require('./modbus-client-core-test-helper')
 
 describe('Core Client Settings Testing', function () {
-  installCoreClientSandboxHooks(this)
+  const getSandbox = installCoreClientSandboxHooks(this)
 
   describe('setNewNodeOptionalSettings', function () {
     it('should set reconnectTimeout if provided in msg.payload', function () {
@@ -53,11 +53,12 @@ describe('Core Client Settings Testing', function () {
       done()
     })
     it('should correctly parse and set unitId when provided with a valid integer', () => {
+      const sandbox = getSandbox()
       const node = { unit_id: 1, checkUnitId: sinon.spy() }
       const msg = { payload: { unitId: '123' } }
       const nodeLog = sinon.spy()
 
-      coreClientUnderTest.getLogFunction = sinon.stub().returns(nodeLog)
+      sandbox.stub(coreClientUnderTest, 'getLogFunction').returns(nodeLog)
 
       coreClientUnderTest.setNewNodeOptionalSettings(node, msg)
 

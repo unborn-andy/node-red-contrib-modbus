@@ -10,23 +10,22 @@ const sinon = require('sinon')
 const { installCoreClientSandboxHooks } = require('./modbus-client-core-test-helper')
 
 describe('Core Client FC Testing', function () {
-  installCoreClientSandboxHooks(this)
+  const getSandbox = installCoreClientSandboxHooks(this)
 
   describe('readModbusByFunctionCode', () => {
     it('should call readModbusByFunctionCodeOne when msg.payload.fc is 1', () => {
+      const sandbox = getSandbox()
       const node = {}
       const msg = { payload: { fc: '1' } }
       const cb = sinon.spy()
       const cberr = sinon.spy()
 
-      sinon.stub(coreClientUnderTest, 'readModbusByFunctionCodeOne')
+      sandbox.stub(coreClientUnderTest, 'readModbusByFunctionCodeOne')
 
       coreClientUnderTest.readModbusByFunctionCode(node, msg, cb, cberr)
 
       sinon.assert.calledOnce(coreClientUnderTest.readModbusByFunctionCodeOne)
       sinon.assert.calledWith(coreClientUnderTest.readModbusByFunctionCodeOne, node, msg, cb, cberr)
-
-      coreClientUnderTest.readModbusByFunctionCodeOne.restore()
     })
 
     it('should call readCoils_deformedReadEnabled and use the deformed path if the option is enabled', async () => {
@@ -122,50 +121,49 @@ describe('Core Client FC Testing', function () {
     })
 
     it('should handle msg.payload.fc as a string representation of a number', () => {
+      const sandbox = getSandbox()
       const node = {}
       const msg = { payload: { fc: '2' } }
       const cb = sinon.spy()
       const cberr = sinon.spy()
 
-      sinon.stub(coreClientUnderTest, 'readModbusByFunctionCodeTwo')
+      sandbox.stub(coreClientUnderTest, 'readModbusByFunctionCodeTwo')
 
       coreClientUnderTest.readModbusByFunctionCode(node, msg, cb, cberr)
 
       sinon.assert.calledOnce(coreClientUnderTest.readModbusByFunctionCodeTwo)
       sinon.assert.calledWith(coreClientUnderTest.readModbusByFunctionCodeTwo, node, msg, cb, cberr)
-
-      coreClientUnderTest.readModbusByFunctionCodeTwo.restore()
     })
     it('should call readModbusByFunctionCodeThree when msg.payload.fc is 3', () => {
+      const sandbox = getSandbox()
       const node = {}
       const msg = { payload: { fc: '3' } }
       const cb = sinon.spy()
       const cberr = sinon.spy()
 
-      sinon.stub(coreClientUnderTest, 'readModbusByFunctionCodeThree')
+      sandbox.stub(coreClientUnderTest, 'readModbusByFunctionCodeThree')
 
       coreClientUnderTest.readModbusByFunctionCode(node, msg, cb, cberr)
 
       sinon.assert.calledOnce(coreClientUnderTest.readModbusByFunctionCodeThree)
       sinon.assert.calledWith(coreClientUnderTest.readModbusByFunctionCodeThree, node, msg, cb, cberr)
-
-      coreClientUnderTest.readModbusByFunctionCodeThree.restore()
     })
     it('should call readModbusByFunctionCodeFour when msg.payload.fc is 4', () => {
+      const sandbox = getSandbox()
       const node = {}
       const msg = { payload: { fc: '4' } }
       const cb = sinon.spy()
       const cberr = sinon.spy()
 
-      sinon.stub(coreClientUnderTest, 'readModbusByFunctionCodeFour')
+      sandbox.stub(coreClientUnderTest, 'readModbusByFunctionCodeFour')
 
       coreClientUnderTest.readModbusByFunctionCode(node, msg, cb, cberr)
       sinon.assert.calledWith(coreClientUnderTest.readModbusByFunctionCodeFour, node, msg, cb, cberr)
-      coreClientUnderTest.readModbusByFunctionCodeFour.restore()
     })
     it('should log "Function Code Unknown" when msg.payload.fc is not 1, 2, 3, or 4', () => {
-      const stubGetLogFunction = sinon.stub(coreClientUnderTest, 'getLogFunction').returns(sinon.stub())
-      const stubActivateSendingOnFailure = sinon.stub(coreClientUnderTest, 'activateSendingOnFailure')
+      const sandbox = getSandbox()
+      const stubGetLogFunction = sandbox.stub(coreClientUnderTest, 'getLogFunction').returns(sinon.stub())
+      const stubActivateSendingOnFailure = sandbox.stub(coreClientUnderTest, 'activateSendingOnFailure')
       const node = {}
       const msg = { payload: { fc: '5' } }
       const cb = sinon.spy()
@@ -176,13 +174,11 @@ describe('Core Client FC Testing', function () {
       sinon.assert.calledOnce(stubActivateSendingOnFailure)
       sinon.assert.calledWithExactly(stubActivateSendingOnFailure, node, cberr, sinon.match.instanceOf(Error), msg)
       sinon.assert.calledOnceWithExactly(nodeLog, 'Function Code Unknown %s', msg.payload.fc)
-
-      stubGetLogFunction.restore()
-      stubActivateSendingOnFailure.restore()
     })
   })
   describe('writeModbusByFunctionCodeSixteen', () => {
     it('should call modbusErrorHandling when writeRegisters rejects and getID is non-zero (Task 4.7)', function (done) {
+      const sandbox = getSandbox()
       const node = {
         client: {
           writeRegisters: sinon.stub().rejects(new Error('write error')),
@@ -190,7 +186,7 @@ describe('Core Client FC Testing', function () {
         },
         modbusErrorHandling: sinon.spy()
       }
-      const activateSendingOnFailureStub = sinon.stub(coreClientUnderTest, 'activateSendingOnFailure')
+      const activateSendingOnFailureStub = sandbox.stub(coreClientUnderTest, 'activateSendingOnFailure')
       const msg = {
         payload: {
           address: '0',
@@ -205,7 +201,6 @@ describe('Core Client FC Testing', function () {
       setTimeout(function () {
         sinon.assert.calledOnce(node.modbusErrorHandling)
         sinon.assert.calledOnce(activateSendingOnFailureStub)
-        activateSendingOnFailureStub.restore()
         done()
       }, 50)
     })

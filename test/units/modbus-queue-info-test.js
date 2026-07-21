@@ -28,6 +28,15 @@ helper.init(require.resolve('node-red'))
 
 const testFlows = require('./flows/modbus-queue-info-flows')
 const mbBasics = require('../../src/modbus-basics')
+const { withEphemeralPorts } = require('../helper/test-helper-extensions')
+
+function loadFlow (nodes, flowTemplate, callback) {
+  withEphemeralPorts(flowTemplate).then((flow) => {
+    helper.load(nodes, flow, callback)
+  }).catch((err) => {
+    throw err
+  })
+}
 
 describe('Queue Info node Testing', function () {
   before(function (done) {
@@ -52,7 +61,7 @@ describe('Queue Info node Testing', function () {
 
   describe('Node', function () {
     it('should handle error in input parsing and call error handling functions', function (done) {
-      helper.load(testQueueInfoNodes, testFlows.testShouldBeLoadedFlow, function () {
+      loadFlow(testQueueInfoNodes, testFlows.testShouldBeLoadedFlow, function () {
         const modbusQueueInfoNode = helper.getNode('ef5dad20.e97af')
 
         const msg = {
@@ -66,7 +75,7 @@ describe('Queue Info node Testing', function () {
     })
 
     it('should return if updateStatusRunning is true', function (done) {
-      helper.load(testQueueInfoNodes, testFlows.testShouldBeLoadedFlow, function () {
+      loadFlow(testQueueInfoNodes, testFlows.testShouldBeLoadedFlow, function () {
         const modbusQueueInfoNode = helper.getNode('ef5dad20.e97af')
         modbusQueueInfoNode.updateStatusRunning = true
         modbusQueueInfoNode.unitsWithQueue = new Map([
@@ -93,7 +102,7 @@ describe('Queue Info node Testing', function () {
     })
 
     it('should warn when high level queue threshold is reached and errorOnHighLevel is false', function (done) {
-      helper.load(testQueueInfoNodes, testFlows.testShouldBeLoadedFlow, function () {
+      loadFlow(testQueueInfoNodes, testFlows.testShouldBeLoadedFlow, function () {
         const modbusQueueInfoNode = helper.getNode('ef5dad20.e97af')
 
         modbusQueueInfoNode.unitsWithQueue = new Map([[1, { highLevelReached: false }]])
@@ -123,7 +132,7 @@ describe('Queue Info node Testing', function () {
     })
 
     it('should handle showStatusActivities false condition', function (done) {
-      helper.load(testQueueInfoNodes, testFlows.testForshowStatusActivitiesIsFalse, function () {
+      loadFlow(testQueueInfoNodes, testFlows.testForshowStatusActivitiesIsFalse, function () {
         const setNodeDefaultStatusStub = sinon.stub(mbBasics, 'setNodeDefaultStatus')
         setNodeDefaultStatusStub.restore()
 
@@ -132,7 +141,7 @@ describe('Queue Info node Testing', function () {
     })
 
     it('should handle updateOnAllUnitQueues true condition', function (done) {
-      helper.load(testQueueInfoNodes, testFlows.testShouldBeLoadedFlow, function () {
+      loadFlow(testQueueInfoNodes, testFlows.testShouldBeLoadedFlow, function () {
         const modbusQueueInfoNode = helper.getNode('ef5dad20.e97af')
         modbusQueueInfoNode.updateOnAllUnitQueues = true
         const msg = {
@@ -148,7 +157,7 @@ describe('Queue Info node Testing', function () {
     })
 
     it('should handle errors in readFromAllUnitQueues when bufferCommands is false', function (done) {
-      helper.load(testQueueInfoNodes, testFlows.testShouldBeLoadedFlow, function () {
+      loadFlow(testQueueInfoNodes, testFlows.testShouldBeLoadedFlow, function () {
         const modbusQueueInfoNode = helper.getNode('ef5dad20.e97af')
         const modbusClient = helper.getNode('d4c76ff5.c424b8')
         modbusClient.bufferCommandList.get = function (unit) {
@@ -163,7 +172,7 @@ describe('Queue Info node Testing', function () {
     })
 
     it('should return if no server is available', function (done) {
-      helper.load(testQueueInfoNodes, testFlows.testWithNoServer, function () {
+      loadFlow(testQueueInfoNodes, testFlows.testWithNoServer, function () {
         const modbusQueueInfoNode = helper.getNode('ef5dad20.e97af')
         modbusQueueInfoNode.emit('input', { payload: [{ name: 'testFilter', value: 123 }] }
         )
@@ -174,7 +183,7 @@ describe('Queue Info node Testing', function () {
     })
 
     it('should handle errors correctly based on showErrors flag', function (done) {
-      helper.load(testQueueInfoNodes, testFlows.testShouldBeLoadedFlow, function () {
+      loadFlow(testQueueInfoNodes, testFlows.testShouldBeLoadedFlow, function () {
         const error = new Error('Test Error')
         const message = { payload: 'Test Message' }
         const modbusQueueInfo = helper.getNode('ef5dad20.e97af')
@@ -185,7 +194,7 @@ describe('Queue Info node Testing', function () {
     })
 
     it('simple Node should be loaded', function (done) {
-      helper.load(testQueueInfoNodes, testFlows.testShouldBeLoadedFlow, function () {
+      loadFlow(testQueueInfoNodes, testFlows.testShouldBeLoadedFlow, function () {
         const modbusServer = helper.getNode('389153e.cb648ac')
         modbusServer.should.have.property('name', 'modbusServer')
 
@@ -202,7 +211,7 @@ describe('Queue Info node Testing', function () {
     // TO BE FIXED
 
     it('should set updateStatusRunning to false and throw error when an error occurs', function (done) {
-      helper.load(testQueueInfoNodes, testFlows.testToThrowError, function () {
+      loadFlow(testQueueInfoNodes, testFlows.testToThrowError, function () {
         const modbusQueueInfoNode = helper.getNode('1b72b5d207427b00')
         let setStatus = {}
 
@@ -218,7 +227,7 @@ describe('Queue Info node Testing', function () {
     })
 
     it('should send a message when low level queue threshold is reached', function (done) {
-      helper.load(testQueueInfoNodes, testFlows.testToReadLowLevelReached, function () {
+      loadFlow(testQueueInfoNodes, testFlows.testToReadLowLevelReached, function () {
         const modbusQueueInfoNodeInstance = helper.getNode('1b72b5d207427b00')
         const helperNode = helper.getNode('1aac12eebc4bd7cb')
 
@@ -243,7 +252,7 @@ describe('Queue Info node Testing', function () {
     })
 
     it('should send a message when high level queue threshold is reached', function (done) {
-      helper.load(testQueueInfoNodes, testFlows.testToReadWhenHighLevelReached, function () {
+      loadFlow(testQueueInfoNodes, testFlows.testToReadWhenHighLevelReached, function () {
         const modbusQueueInfoNodeInstance = helper.getNode('1b72b5d207427b00')
         const helperNode = helper.getNode('1aac12eebc4bd7cb')
 
@@ -271,7 +280,7 @@ describe('Queue Info node Testing', function () {
     })
 
     it('should send a message and raise an error when high high level queue threshold is reached', function (done) {
-      helper.load(testQueueInfoNodes, testFlows.testToReadHighHighLevelReached, function () {
+      loadFlow(testQueueInfoNodes, testFlows.testToReadHighHighLevelReached, function () {
         const modbusQueueInfoNodeInstance = helper.getNode('1b72b5d207427b00')
         const helperNode = helper.getNode('1aac12eebc4bd7cb')
         modbusQueueInfoNodeInstance.unitsWithQueue = new Map()
@@ -294,7 +303,7 @@ describe('Queue Info node Testing', function () {
     })
 
     it('simple flow with new reset inject should be loaded', function (done) {
-      helper.load(testQueueInfoNodes, testFlows.testNewResetInjectShouldBeLoadedFlow, function () {
+      loadFlow(testQueueInfoNodes, testFlows.testNewResetInjectShouldBeLoadedFlow, function () {
         const h1 = helper.getNode('h1')
         h1.on('input', function () {
           done()
@@ -305,7 +314,7 @@ describe('Queue Info node Testing', function () {
     })
 
     it('simple flow with reset function for queue', function (done) {
-      helper.load(testQueueInfoNodes, testFlows.testResetFunctionQueueFlow, function () {
+      loadFlow(testQueueInfoNodes, testFlows.testResetFunctionQueueFlow, function () {
         const h1 = helper.getNode('h1')
         h1.on('input', function () {
           done()
@@ -316,7 +325,7 @@ describe('Queue Info node Testing', function () {
     })
 
     it('should be not state queueing - not ready to send', function (done) {
-      helper.load(testQueueInfoNodes, testFlows.testShouldBeLoadedFlow, function () {
+      loadFlow(testQueueInfoNodes, testFlows.testShouldBeLoadedFlow, function () {
         const modbusClientNode = helper.getNode('d4c76ff5.c424b8')
         setTimeout(() => {
           mbBasics.setNodeStatusTo('stopped', modbusClientNode)
@@ -328,7 +337,7 @@ describe('Queue Info node Testing', function () {
     })
 
     it('should log an error message if showErrors is true and an error occurs', function (done) {
-      helper.load(testQueueInfoNodes, testFlows.testShouldBeLoadedFlow, function () {
+      loadFlow(testQueueInfoNodes, testFlows.testShouldBeLoadedFlow, function () {
         const modbusQueueInfo = helper.getNode('389153e.cb648ac')
 
         modbusQueueInfo.showErrors = true
@@ -337,7 +346,7 @@ describe('Queue Info node Testing', function () {
     })
 
     it('should return the correct color based on queue levels reached', function (done) {
-      helper.load(testQueueInfoNodes, testFlows.testToupdateOnAllUnitQueues, function () {
+      loadFlow(testQueueInfoNodes, testFlows.testToupdateOnAllUnitQueues, function () {
         const node = helper.getNode('07a7c865d5cb3125')
         node.unitsWithQueue.set(1, {})
         let color = node.getStatusSituationFillColor(1)
@@ -367,7 +376,7 @@ describe('Queue Info node Testing', function () {
 
   describe('post', function () {
     it('should fail for invalid node', function (done) {
-      helper.load(testQueueInfoNodes, [], function () {
+      loadFlow(testQueueInfoNodes, [], function () {
         helper.request().post('/modbus-queue-info/invalid').expect(404).end(done)
       })
     })

@@ -65,7 +65,7 @@
   "homepage": "https://plus4nodered.com/",
   "scripts": {
     "changelog": "npm run rewrite-changelog",
-    "test": "npm run lint && mocha ./test --parallel --recursive --reporter dot --timeout 6000",
+    "test": "npm run lint && mocha ./test --parallel --recursive --reporter dot --timeout 20000",
     "test:ci": "npm run lint && mocha ./test --parallel --recursive --reporter dot --timeout 20000",
     "test:slow": "npm run lint && mocha ./test --recursive --reporter dot --timeout 12000",
     "test:verbose": "npm run lint && mocha ./test --recursive",
