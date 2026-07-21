@@ -2,9 +2,8 @@
 ![Contribution Modbus](https://img.shields.io/badge/Contribution-Modbus-orange.png)
 [![Financial Contributors on Open Collective](https://opencollective.com/node-red-contrib-modbus/all/badge.svg?label=financial+contributors)](https://opencollective.com/node-red-contrib-modbus)
 [![NPM version](https://badge.fury.io/js/node-red-contrib-modbus.png)](https://www.npmjs.com/package/node-red-contrib-modbus)
-![ES_Sourdce_Version](https://img.shields.io/badge/JS_Source-ES2019-yellow.png)
-![ES_Deploy_Version](https://img.shields.io/badge/JS_Deploy-ES2015-yellow.png)
-![NodeJS_Version](https://img.shields.io/badge/NodeJS-LTS-green.png)
+![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22-green.png)
+![Node-RED](https://img.shields.io/badge/Node--RED-%3E%3D4-red.png)
 [![Standard - JavaScript Style Guide](https://img.shields.io/badge/code%20style-standard-brightgreen.svg)](http://standardjs.com/)
 [![NPM download](https://img.shields.io/npm/dm/node-red-contrib-modbus.svg)](https://npm-stat.com/charts.html?package=node-red-contrib-modbus)
 [![Build and publish](https://github.com/BiancoRoyal/node-red-contrib-modbus/actions/workflows/build.yml/badge.svg)](https://github.com/BiancoRoyal/node-red-contrib-modbus/actions/workflows/build.yml)
@@ -18,172 +17,192 @@
 
 [![nodemodbus64](images/modbus-icon64.png)](https://www.npmjs.com/package/node-red-contrib-modbus)
 
-If you like that contributor's package for Modbus, then please **give us your star at [GitHub][12]** !
+**Public LTS line:** **v5.x** (current: **5.50.0**) · License **BSD-3-Clause** · Repo: [GitHub][12]
+
+If you like this package, please **give us a star on [GitHub][12]**.
+
+---
+
+## Requirements
+
+| | Minimum |
+|--|---------|
+| **Node.js** | `>= 22` ([`package.json` engines](package.json)) |
+| **Node-RED** | `>= 4` ([`node-red.version`](package.json)) |
+| **Install** | Palette Manager or `npm install node-red-contrib-modbus` |
+
+Older Node.js / Node-RED combinations: see historical notes in [HISTORY.md](HISTORY.md). Prefer staying on current LTS Node.js with this release line.
+
+---
+
+## What’s in the package (v5)
+
+TCP / serial Modbus **client** nodes plus an in-package **buffer Modbus TCP server** for demos and tests.
+
+| Palette node | Role |
+|--------------|------|
+| **Modbus-Client** | Config: TCP or Serial, queue, reconnect (XState FSM) |
+| **Modbus-Read** | Periodic FC1–4 poll |
+| **Modbus-Getter** | On-demand FC1–4 read |
+| **Modbus-Flex-Getter** | Payload-driven FC1–4 read |
+| **Modbus-Write** | FC5 / 6 / 15 / 16 write |
+| **Modbus-Flex-Write** | Payload-driven write |
+| **Modbus-Flex-Sequencer** | Ordered multi-range reads |
+| **Modbus-Flex-FC** | Custom FC maps (`extras/argumentMaps`) |
+| **Modbus-Flex-Connector** | Runtime reconnect / endpoint switch |
+| **Modbus-Queue-Info** | Client queue depth / reset |
+| **Modbus-Response** | Status display for responses |
+| **Modbus-IO-Config** | Named IO JSON mapping |
+| **Modbus-Response-Filter** | Filter IO payload by name |
+| **Modbus-Server** | Buffer-backed TCP slave (jsmodbus) |
+
+**Not in v5:** TLS client (`Modbus-Client-TLS` is v6), flow-based dynamic request/response gateway ([#567](https://github.com/BiancoRoyal/node-red-contrib-modbus/issues/567) → separate package recommendation), `modbus-flex-server` (own package — see below).
+
+### Highlights since 5.46 / in 5.50.0
+
+- Client **FSM / reconnect / queue** hardening (from 5.46.x)
+- Safer **unit ID** handling (`unitId` / `unitid`, including unit `0`)
+- Modbus address/quantity validation improvements
+- Numbered **learning examples** `01`…`15` + [Learning Path docs](docs/LEARNING-PATH.md)
+- **Requires Node-RED `>= 4`** and **Node.js `>= 22`**
+
+See [CHANGELOG.md](CHANGELOG.md) for the full list.
+
+---
+
+## How to use / Learning Path
+
+**Recommended:** use the in-package **numbered learning examples** (`01` … `15`).
+
+1. Install this package and restart Node-RED.
+2. Open **Menu → Import → Examples → `node-red-contrib-modbus`**.
+3. Work through the flows in order (or jump to a single node tutorial).
+
+| Doc | Content |
+|-----|---------|
+| [**Learning Path guide**](docs/LEARNING-PATH.md) | Stages, Modbus cheat sheet, node ↔ example map |
+| [**Examples index**](examples/README.md) | Full file list, TCP ports, IO path, old→new mapping |
+| [Docs hub](docs/README.md) | All documentation entry points |
+
+Each example tab has an English **comment** node with run instructions. Node sidebar help points at the matching example filename.
+
+| Learn… | Import example |
+|--------|----------------|
+| Modbus registers & FCs | `01-Modbus-Basics-Registers-And-FCs` |
+| First TCP client + server | `02-Getting-Started-Client-And-Server` |
+| Polling / on-demand / flex read-write | `03` … `06` |
+| Sequencer, Flex-FC, Connector, Queue, IO | `07` … `11` |
+| Buffer server & patterns (HTTP, serial, gateway) | `12` … `15` |
+
+Also: [Wiki / DEBUG][10] · [YouTube Playlist][9] · [Leanpub Modbus book](https://leanpub.com/p4nr-contribution-modbus/) · optional older flow on [flows.nodered.org][3]
+
+![Flow Example](images/Screenshot01V210.png)
+
+---
+
+## Install
+
+In your Node-RED user directory (typically `~/.node-red`):
+
+```bash
+npm install node-red-contrib-modbus
+```
+
+Global (less common):
+
+```bash
+npm install -g node-red-contrib-modbus
+```
+
+If native modules fail to build:
+
+```bash
+npm install node-red-contrib-modbus --unsafe-perm --build-from-source
+```
+
+List published versions:
+
+```bash
+npm show node-red-contrib-modbus versions
+```
+
+Install a specific version (example):
+
+```bash
+npm install node-red-contrib-modbus@5.45.2
+```
+
+### Runtime libraries
+
+| Package | Role in this contrib |
+|---------|----------------------|
+| [`@openp4nr/modbus-serial`][18] | Modbus client I/O (TCP / serial / ASCII, etc.) |
+| [`jsmodbus`][13] | In-package **Modbus-Server** (buffer slave) |
+| [`@xstate/fsm`][19] | Client connection state machine |
+| [`serialport`][14] / `@serialport/list` | **Optional** — list serial ports in the UI (not the runtime Modbus stack) |
+
+If TCP fails, verify connectivity with a plain Modbus client first. If serial fails, verify the port with [`serialport`][14] first.
+
+Logging uses the [`debug`][20] package (not winston — winston is a v6 direction):
+
+```bash
+DEBUG=contribModbus*,modbus-serial node-red -v
+```
+
+More options: [Wiki DEBUG][10].
+
+---
+
+## Modbus Flex Server (separate package)
+
+**Modbus-Flex-Server** was moved out of this package (vm2 / maintenance boundary). Install the dedicated contrib if you still need it. Further package splits (client vs server) remain a longer-term v6 architecture topic; **v5 keeps `Modbus-Server` in this package** as the buffer slave for demos and tests.
+
+---
 
 ## P4NR B2B Community
 
-The [P4NR B2B Community][16] driven by [Iniationware][15] takes now care about the development and improvements 
-for Modbus.
-Books, Tutorials and much more will be provided over time and if you need some support the P4NR team 
-can help you.
-Bianco Royal is in partnership with the P4NR B2B Community. 
+The [P4NR B2B Community][16] (driven by [Iniationware][15]) supports development and commercial help around Modbus for Node-RED. Bianco Royal partners with P4NR.
 
 - [PLUS for Node-RED International][16]
 - [PLUS for Node-RED Germany][17]
 
-## Leanpub Live-Book
+### Leanpub live book
 
-We're excited to announce our [Online Leanpub Book](https://leanpub.com/p4nr-contribution-modbus/) that covers each v5.x
-version in detail. This comprehensive guide is aimed to help you learn more about our nodes and the various options inside them.
-What's unique about this book is its "buy once, update forever" approach. We continuously update the content to bring
-the latest v5.x changes or new options with each v5.x release version.
+The [Online Leanpub Book](https://leanpub.com/p4nr-contribution-modbus/) covers v5.x nodes and options in depth (“buy once, update forever”). For a free start in this repo, use the [**Learning Path**](docs/LEARNING-PATH.md).
 
-Moreover, we're dedicated to responding to your queries. If you have a question, not only will we answer it,
-but we can also incorporate the insightful answers into the book's future editions. This ensures that all readers
-stay informed and engaged. Thanks to the [P4NR B2B Community](https://p4nr.com/)
+---
 
-Purchasing our book will greatly support us in our mission to incrementally improve Modbus for Node-RED and beyond
-with every release in the upcoming decade. Your support will undoubtedly contribute to building a robust Modbus
-for Node-RED ecosystem.
+## Errors & status
 
-## Contribution Information
+From v5.22 onward, client and server nodes catch many network and protocol errors so Node-RED should not crash for those handled cases. Always watch **node status**, **Catch** nodes, and optional empty-msg-on-fail settings in your flows.
 
-[Node-RED][1] contribution package for [Modbus][8] version overview:
-
-Based on [modbus-serial][2] with TCP, C701, Telnet, Serial, RTU buffered, and ASCII
-
-* stress tested with Node-RED v1.0.4 and Node.js LTS
-* works with queueing per unit and round-robin scheduling
-
-[Version History](HISTORY.md)
-
-If you like that contributor's package for Modbus, then please **give us your star at [GitHub][12]** !
-
-## Install
-
-Run the following command in the root directory of your Node-RED install
-
-    npm install node-red-contrib-modbus
-
-Run the following command for global install
-
-    npm install -g node-red-contrib-modbus
-
-try these options on npm install to build if you have problems to install
-
-    --unsafe-perm --build-from-source
-    
-### modbus-serial, serialport and jsmodbus
-
-The [serialport][14] optional dependency is just to list all ports on your system in the client configuration.
-It is not the [serialport][14] version to work with Modbus at runtime. 
-For that check the [modbus-serial][2] or [jsmodbus][13] package.json, please!
-The [modbus-serial][2] supports and works for TCP connections in that package, too.
-The [jsmodbus][13] package is just to provide a simple Modbus Server node. 
-All Modbus commands running on [modbus-serial][2].
-
-### TCP or Serial testing
-If you get in trouble *with TCP* connections, then check and test with just [modbus-serial][2] first, please!
-
-If you get in trouble *with Serial* connections, then check with just [serialport][14] first, please!
-
-## Update/Upgrade/Downgrade
-
-To update the dependencies or the whole package, you have just to install again.
-
-    npm show node-red-contrib-modbus@* version
-
-To get a special version, please set the version with @M.M.F:
-
-    npm install node-red-contrib-modbus@3.6.1
-
-or global by
-
-    npm install -g node-red-contrib-modbus@3.6.1
-
-## Modbus Flex Server
-
-The Modbus-Flex-Server now got its own package.
-The P4NR team started to work on fixing the vm2 issue, but first, we think as the community here it has to get out of
-this package to close the issue on vm2 now.
-The P4NR team will split this package more in the next time into client and server packages to get a better
-development flow and to react faster on CVE or other issues.
-This is a first step to v6 of the package.
-
-## How to use
-
-* see [Wiki][10] pages
-* use the [Flow example][3] to see how it works ...
-* see [YouTube Playlist][9]
-
-![Flow Example](images/Screenshot01V210.png)
-
-## Errors
-
-Since v5.22+ the package will catch network and other errors of the client and server node. 
-That means, you have to handle the error status of the node and Node-RED should not crash in the handled cases.
-
-## Debug
-
-Debug will be activated by starting Node-RED with debug mode:
-
-    DEBUG=contribModbus*,modbus-serial node-red -v
-
-    or
-
-    DEBUG=contribModbus:{option},contribModbus:{option},...
-
-see [Wiki][10] pages to get more options in detail
+---
 
 ## Contributing
 
-Let's work together! Contributors are welcome.
-Please, fork the repo and send your pull requests from your repo 
-to our develop branch or open issues while you're testing!
+Contributors welcome. Fork the repo and open PRs against **`develop`** (or discuss via issues). For larger features, see the maintainer pipeline under [`docs/p4nr/`](docs/p4nr/README.md).
 
-## For Developers
+Useful scripts (see `package.json`):
 
-See the scripts of the package and the additional Shell scripts to clean, update, or upgrade this NPM package.
-
-* dev-link (local testing with Node-RED)
-* testing (unit, integration)
-* coverage
-* docs generation
-* standard-version alpha, beta, release
-* git-flow
-
-## For Testers
-
-Report issues, share your experiences, record tutorials,
-write Wiki articles and Blogs to share more about this package, please!
+```bash
+npm run build          # lint + gulp → modbus/
+npm test               # Mocha (parallel)
+npm run test:units
+npm run coverage
+npm run dev-link       # local link into Node-RED
+```
 
 ## Authors
 
-since April 2016 by [Klaus Landsdorf][4] and Community Driven
+Since April 2016 by [Klaus Landsdorf][4] and the community.
 
-### History
+- Contribution since 2016: [Contributors][6]
+- License change 2016: [Jason D. Harper][7]
+- Started early 2015: [Mika Karaila][5]
 
-* contribution since 2016 by [Contributors][6]
-* license changed in 2016 by [Jason D. Harper][7]
-* started in early 2015 by [Mika Karaila][5]
+[Version history](HISTORY.md) · [CHANGELOG](CHANGELOG.md)
 
-[1]:https://nodered.org
-[2]:https://www.npmjs.com/package/modbus-serial
-[3]:https://flows.nodered.org/flow/bf06a87e84395e4bce276714c6f5f884
-[4]:https://github.com/biancode
-[5]:https://github.com/mikakaraila
-[6]:https://github.com/BiancoRoyal/node-red-contrib-modbus/graphs/contributors
-[7]:https://github.com/jayharper
-[8]:http://www.modbus.org/
-[9]:http://bit.ly/2jzwjqP
-[10]:https://github.com/BiancoRoyal/node-red-contrib-modbus/wiki/DEBUG
-[11]:https://plus4nodered.com/
-[12]:https://github.com/BiancoRoyal/node-red-contrib-modbus
-[13]:https://www.npmjs.com/package/jsmodbus
-[14]:https://www.npmjs.com/package/serialport
-[15]:https://iniationware.com/
-[16]:https://plus4nodered.com/
-[17]:https://plus4nodered.com/de/
+---
 
 ## Contributors
 
@@ -214,3 +233,24 @@ Support this project with your organization. Your logo will show up here with a 
 <a href="https://opencollective.com/node-red-contrib-modbus/organization/7/website"><img src="https://opencollective.com/node-red-contrib-modbus/organization/7/avatar.svg"></a>
 <a href="https://opencollective.com/node-red-contrib-modbus/organization/8/website"><img src="https://opencollective.com/node-red-contrib-modbus/organization/8/avatar.svg"></a>
 <a href="https://opencollective.com/node-red-contrib-modbus/organization/9/website"><img src="https://opencollective.com/node-red-contrib-modbus/organization/9/avatar.svg"></a>
+
+[1]:https://nodered.org
+[2]:https://www.npmjs.com/package/modbus-serial
+[3]:https://flows.nodered.org/flow/bf06a87e84395e4bce276714c6f5f884
+[4]:https://github.com/biancode
+[5]:https://github.com/mikakaraila
+[6]:https://github.com/BiancoRoyal/node-red-contrib-modbus/graphs/contributors
+[7]:https://github.com/jayharper
+[8]:http://www.modbus.org/
+[9]:http://bit.ly/2jzwjqP
+[10]:https://github.com/BiancoRoyal/node-red-contrib-modbus/wiki/DEBUG
+[11]:https://plus4nodered.com/
+[12]:https://github.com/BiancoRoyal/node-red-contrib-modbus
+[13]:https://www.npmjs.com/package/jsmodbus
+[14]:https://www.npmjs.com/package/serialport
+[15]:https://iniationware.com/
+[16]:https://plus4nodered.com/
+[17]:https://plus4nodered.com/de/
+[18]:https://github.com/openp4nr/modbus-serial
+[19]:https://www.npmjs.com/package/@xstate/fsm
+[20]:https://www.npmjs.com/package/debug

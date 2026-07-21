@@ -156,6 +156,93 @@ describe('Client node Unit Testing', function () {
       })
     })
 
+    it('should register consumers by node id string not object key (#423)', function (done) {
+      helper.load(testModbusClientNodes, testFlows.testClientWithoutServerFlow, function () {
+        const modbusClientNode = helper.getNode('3')
+        modbusClientNode.registeredNodeList = {}
+        const sendStub = sinon.stub(modbusClientNode.stateService, 'send')
+
+        modbusClientNode.registerForModbus({ id: 'flex-a' })
+        modbusClientNode.registerForModbus({ id: 'flex-b' })
+
+        assert.strictEqual(Object.keys(modbusClientNode.registeredNodeList).length, 2)
+        assert.ok(modbusClientNode.registeredNodeList['flex-a'])
+        assert.ok(modbusClientNode.registeredNodeList['flex-b'])
+        assert.strictEqual(modbusClientNode.registeredNodeList['[object Object]'], undefined)
+        // NEW/INIT only when going from 0 → 1
+        sinon.assert.calledWith(sendStub, 'NEW')
+        sinon.assert.calledWith(sendStub, 'INIT')
+        assert.strictEqual(sendStub.withArgs('NEW').callCount, 1)
+
+        sendStub.restore()
+        done()
+      })
+    })
+
+    it('should not STOP client when deregistering one of multiple consumers (#423)', function (done) {
+      helper.load(testModbusClientNodes, testFlows.testClientWithoutServerFlow, function () {
+        const modbusClientNode = helper.getNode('3')
+        modbusClientNode.registeredNodeList = {
+          'flex-a': 'flex-a',
+          'flex-b': 'flex-b'
+        }
+        modbusClientNode.closingModbus = false
+        const sendStub = sinon.stub(modbusClientNode.stateService, 'send')
+        const setStoppedStub = sinon.stub(modbusClientNode, 'setStoppedState')
+        const closeStub = sinon.stub(modbusClientNode, 'closeConnectionWithoutRegisteredNodes')
+
+        modbusClientNode.deregisterForModbus('flex-a', function () {
+          assert.strictEqual(modbusClientNode.registeredNodeList['flex-a'], undefined)
+          assert.strictEqual(modbusClientNode.registeredNodeList['flex-b'], 'flex-b')
+          sinon.assert.notCalled(closeStub)
+          sinon.assert.notCalled(setStoppedStub)
+          assert.strictEqual(sendStub.calledWith('STOP'), false)
+          sendStub.restore()
+          setStoppedStub.restore()
+          closeStub.restore()
+          done()
+        })
+      })
+    })
+
+    it('should not STOP when siblings remain even if list was non-empty in closeConnection (#423)', function (done) {
+      helper.load(testModbusClientNodes, testFlows.testClientWithoutServerFlow, function () {
+        const modbusClientNode = helper.getNode('3')
+        modbusClientNode.registeredNodeList = { 'flex-b': 'flex-b' }
+        const setStoppedStub = sinon.stub(modbusClientNode, 'setStoppedState')
+        const doneSpy = sinon.spy()
+
+        modbusClientNode.closeConnectionWithoutRegisteredNodes('flex-a', doneSpy)
+
+        sinon.assert.calledOnce(doneSpy)
+        sinon.assert.notCalled(setStoppedStub)
+        setStoppedStub.restore()
+        done()
+      })
+    })
+
+    it('should finish last-consumer deregister without waiting for hung client.close (#423 deploy)', function (done) {
+      helper.load(testModbusClientNodes, testFlows.testClientWithoutServerFlow, function () {
+        const modbusClientNode = helper.getNode('3')
+        modbusClientNode.registeredNodeList = {}
+        modbusClientNode.actualServiceState = { value: 'queueing' }
+        modbusClientNode.client = {
+          isOpen: true,
+          close: function () { /* never calls back — simulates hung socket */ }
+        }
+        const setStoppedStub = sinon.stub(modbusClientNode, 'setStoppedState').callsFake(function (id, cb) {
+          cb()
+        })
+        const started = Date.now()
+        modbusClientNode.closeConnectionWithoutRegisteredNodes('last-id', function () {
+          assert.ok(Date.now() - started < 500, 'must not block on hung client.close')
+          sinon.assert.calledOnce(setStoppedStub)
+          setStoppedStub.restore()
+          done()
+        })
+      })
+    })
+
     it('should call cberr with error when setNewNodeSettings returns false', function (done) {
       helper.load(testModbusClientNodes, testFlows.testClientWithoutServerFlow, function () {
         const modbusClientNode = helper.getNode('3')

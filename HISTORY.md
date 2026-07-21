@@ -1,6 +1,14 @@
 # Version History
 
-## Node-RED v3.x versions:
+## Current (v5.50+)
+
+* **Node.js `>= 22`** required (`package.json` engines)
+* **Node-RED `>= 4`** required (`package.json` → `node-red.version`)
+* Runtime client stack: `@openp4nr/modbus-serial` · server: `jsmodbus` · FSM: `@xstate/fsm`
+* See [CHANGELOG.md](CHANGELOG.md) and [docs/LEARNING-PATH.md](docs/LEARNING-PATH.md)
+
+## Node-RED v3.x versions (historical — no longer the package minimum)
+
 * Node.js 20.x will be supported with v5.40+
 * Node.js 18.x will be supported with v5.22+
 * Node.js 16.x will be supported with v5.22+
