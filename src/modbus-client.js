@@ -680,44 +680,91 @@ module.exports = function (RED) {
       verboseLog('close node ' + nodeIdentifierName)
       node.internalDebugLog('close node ' + nodeIdentifierName)
 
-      if (node.client) {
-        if (node.client.isOpen) {
-          node.client.close(function (err) {
-            if (err) {
-              /* istanbul ignore next */
-              verboseLog('Connection closed with error ' + nodeIdentifierName)
-            } else {
-              /* istanbul ignore next */
-              verboseLog('Connection closed well ' + nodeIdentifierName)
-            }
-            done()
-          })
-        } else {
-          /* istanbul ignore next */
-          verboseLog('connection was closed ' + nodeIdentifierName)
-          done()
+      // Never block Node-RED deploy on a hung socket close (default timeout ~15s)
+      node.safeCloseModbusClient(function () {
+        try {
+          if (node.client) {
+            node.client.removeAllListeners()
+          }
+        } catch (err) {
+          verboseWarn(err.message + ' while removing client listeners')
         }
-
-        node.client.removeAllListeners()
-      } else {
-        verboseLog('Connection closed simple ' + nodeIdentifierName)
+        try {
+          node.removeAllListeners()
+        } catch (err) {
+          verboseWarn(err.message + ' while removing node listeners')
+        }
         done()
-      }
-
-      node.removeAllListeners()
+      })
     })
 
     // handle using as config node
     node.registeredNodeList = {}
 
+    node.normalizeClientUserId = function (clientUserNodeId) {
+      if (clientUserNodeId && typeof clientUserNodeId === 'object' && clientUserNodeId.id) {
+        return clientUserNodeId.id
+      }
+      return clientUserNodeId
+    }
+
+    /**
+     * Close the underlying modbus-serial client without risking a deploy hang.
+     * Some transports never invoke the close callback → Node-RED's ~15s guard.
+     */
+    node.safeCloseModbusClient = function (callback) {
+      let finished = false
+      const finish = function () {
+        if (finished) {
+          return
+        }
+        finished = true
+        clearTimeout(timeoutId)
+        if (typeof callback === 'function') {
+          callback()
+        }
+      }
+      const timeoutId = setTimeout(function () {
+        verboseWarn('client.close timed out — continuing deploy')
+        finish()
+      }, 1500)
+
+      try {
+        if (!node.client) {
+          finish()
+          return
+        }
+        if (!node.client.isOpen) {
+          finish()
+          return
+        }
+        node.client.close(function (err) {
+          if (err) {
+            verboseLog('Connection closed with error')
+          } else {
+            verboseLog('Connection closed well')
+          }
+          finish()
+        })
+      } catch (err) {
+        verboseWarn(err.message + ' on safeCloseModbusClient')
+        finish()
+      }
+    }
+
     node.registerForModbus = function (clientUserNodeId) {
-      node.registeredNodeList[clientUserNodeId] = clientUserNodeId
-      if (Object.keys(node.registeredNodeList).length === 1) {
+      const id = node.normalizeClientUserId(clientUserNodeId)
+      if (!id) {
+        return
+      }
+      const previousCount = Object.keys(node.registeredNodeList).length
+      node.registeredNodeList[id] = id
+      if (previousCount === 0) {
         node.closingModbus = false
         node.stateService.send('NEW')
         node.stateService.send('INIT')
       }
-      node.emit('mbregister', clientUserNodeId)
+      node.emit('mbregister', id)
     }
 
     node.setStoppedState = function (clientUserNodeId, done) {
@@ -729,33 +776,39 @@ module.exports = function (RED) {
     node.closeConnectionWithoutRegisteredNodes = function (clientUserNodeId, done) {
       if (Object.keys(node.registeredNodeList).length === 0) {
         node.closingModbus = true
-        if (node.client && node.actualServiceState.value !== 'stopped') {
-          if (node.client.isOpen) {
-            node.client.close(function () {
-              node.setStoppedState(clientUserNodeId, done)
-            })
-          } else {
-            node.setStoppedState(clientUserNodeId, done)
-          }
-        } else {
-          node.setStoppedState(clientUserNodeId, done)
+        // Stop FSM / finish deregister immediately — do not wait for socket close (#423 deploy hang)
+        node.setStoppedState(clientUserNodeId, done)
+        if (node.client && node.actualServiceState && node.actualServiceState.value !== 'stopped') {
+          node.safeCloseModbusClient(function () {})
         }
       } else {
-        node.setStoppedState(clientUserNodeId, done)
+        // Other consumers still use this client — do not STOP (#423 / #487)
+        done()
       }
     }
 
     node.deregisterForModbus = function (clientUserNodeId, done) {
+      const id = node.normalizeClientUserId(clientUserNodeId)
       try {
-        delete node.registeredNodeList[clientUserNodeId]
+        if (id) {
+          delete node.registeredNodeList[id]
+        }
+        // Clean legacy key from pre-fix registers (object coerced to "[object Object]")
+        if (Object.prototype.hasOwnProperty.call(node.registeredNodeList, '[object Object]')) {
+          delete node.registeredNodeList['[object Object]']
+        }
         if (node.closingModbus) {
           done()
-          node.emit('mbderegister', clientUserNodeId)
+          return
+        }
+        if (Object.keys(node.registeredNodeList).length === 0) {
+          node.closeConnectionWithoutRegisteredNodes(id, done)
         } else {
-          node.closeConnectionWithoutRegisteredNodes(clientUserNodeId, done)
+          // Siblings remain — keep FSM/connection (#423)
+          done()
         }
       } catch (err) {
-        verboseWarn(err.message + ' on de-register node ' + clientUserNodeId)
+        verboseWarn(err.message + ' on de-register node ' + id)
         node.error(err)
         done()
       }

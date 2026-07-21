@@ -46,9 +46,15 @@ module.exports = function (RED) {
       modbusIOFileValuNames = configData
     })
 
+    node.payloadIsNamedIoList = function (payload) {
+      return Array.isArray(payload) &&
+        payload.length > 0 &&
+        payload.every((item) => item && typeof item === 'object' && Object.prototype.hasOwnProperty.call(item, 'name'))
+    }
+
     node.filterFromPayload = function (msg) {
       msg.payload = msg.payload.filter((item) => {
-        return item.name === node.filter
+        return item && item.name === node.filter
       })
 
       if (node.filterResponseBuffer) {
@@ -68,6 +74,12 @@ module.exports = function (RED) {
 
     node.on('input', function (msg) {
       if (mbBasics.invalidPayloadIn(msg)) {
+        return
+      }
+
+      // Named IO payloads (useIOForPayload) vary in length — Registers check is only for raw register arrays
+      if (node.payloadIsNamedIoList(msg.payload)) {
+        node.send(node.filterFromPayload(msg))
         return
       }
 

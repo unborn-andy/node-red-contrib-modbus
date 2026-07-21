@@ -20,6 +20,7 @@ module.exports = function (RED) {
 
   function ModbusIOConfigNode (config) {
     const fs = require('fs-extra')
+    const path = require('path')
     const UNLIMITED_LISTENERS = 0
 
     RED.nodes.createNode(this, config)
@@ -32,6 +33,17 @@ module.exports = function (RED) {
     const node = this
     node.setMaxListeners(UNLIMITED_LISTENERS)
     node.lastUpdatedAt = null
+
+    // Resolve relative paths: cwd first, then package root (…/extras/… next to modbus/)
+    if (node.path && !path.isAbsolute(node.path)) {
+      const fromCwd = path.resolve(node.path)
+      const fromPackage = path.resolve(path.join(__dirname, '..', node.path))
+      if (fs.existsSync(fromCwd) && fs.statSync(fromCwd).isFile()) {
+        node.path = fromCwd
+      } else if (fs.existsSync(fromPackage) && fs.statSync(fromPackage).isFile()) {
+        node.path = fromPackage
+      }
+    }
 
     if (!fs.existsSync(node.path)) {
       coreIO.internalDebug('IO File Not Found ' + node.path)
@@ -52,8 +64,16 @@ module.exports = function (RED) {
         })
 
         node.lineReader.on('line', function (line) {
-          if (line) {
-            node.configData.push(line)
+          if (!line) {
+            return
+          }
+          try {
+            const mapping = (typeof line === 'string') ? JSON.parse(line) : line
+            if (mapping && mapping.name && mapping.valueAddress) {
+              node.configData.push(mapping)
+            }
+          } catch (err) {
+            coreIO.internalDebug('IO File Line Parse Error: ' + err.message + ' line=' + line)
           }
         })
 

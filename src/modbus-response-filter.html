@@ -146,5 +146,16 @@
 
     <p>The Response Filter is to work with an IO-File to filter values out of an IO-Payload by name.</p>
 
+    <p><strong>Registers:</strong> optional safety check for <em>raw</em> register arrays
+    (payload length must equal this number). Leave <strong>0</strong> / empty when the
+    upstream node uses <em>IO's As Payload</em> (named objects) — that list length is not
+    the Modbus quantity. Named IO payloads skip this check automatically.</p>
+
     <p>Deploy first to use the lookup button! You need a working IO-File-Config for the lookup.</p>
+
+    <p><strong>Example flow:</strong> Import → Examples →
+    <code>11-Node-IO-Config-And-Response-Filter</code>
+    (IO file: <code>extras/ioFileData/learning-device.json</code>).
+    Set filter name e.g. <code>iTemperature</code> (from
+    <code>extras/ioFileData/names-starter.json</code>), Registers <code>0</code>.</p>
 </script>

@@ -70,9 +70,19 @@
             {"name":"iBooleanSetOne","valueAddress":"%QW4"}
             {"name":"bOperationActive","valueAddress":"%QX8.0"}
         </pre>
+        <p><strong>Important:</strong> the <em>first character</em> of <code>name</code> selects the
+        data type (<code>i</code> Integer, <code>w</code> Word, <code>u</code> Unsigned,
+        <code>b</code> Boolean, <code>f</code>/<code>r</code> Float, …).
+        Names without a known prefix are skipped (empty named payload).
+        Example: use <code>iTemperature</code>, not <code>temperature</code>.</p>
     </div>
     <div>
         <a href="https://gist.github.com/biancode/46bfc4fe78cc059a379b383ea445d2d0" target="_blank">see Converter Flow</a>
     </div>
 
+    <p><strong>Example flow:</strong> Import → Examples →
+    <code>11-Node-IO-Config-And-Response-Filter</code>.
+    Start with <code>extras/ioFileData/names-starter.json</code> (edit names there);
+    larger PLC-style sample: <code>learning-device.json</code>.
+    Relative <code>extras/…</code> paths resolve to the package root.</p>
 </script>

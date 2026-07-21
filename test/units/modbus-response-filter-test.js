@@ -74,13 +74,35 @@ describe('Response Filter node Testing', function () {
         responseFilterNode.registers = 5
         responseFilterNode.error = sinon.stub()
 
+        // Raw register array (not named IO objects) — length check applies
         const msg = {
-          payload: [{ name: 'test' }]
+          payload: [1]
         }
         responseFilterNode.emit('input', msg)
 
         sinon.assert.calledOnce(responseFilterNode.error)
         sinon.assert.calledWithMatch(responseFilterNode.error, sinon.match.instanceOf(Error).and(sinon.match.has('message', '1 does not match 5')))
+        done()
+      })
+    })
+
+    it('should skip registers check for named IO payloads even when registers is set', function (done) {
+      loadFlow(testResponseFilterNodes, testFlows.testToFilterFlow, function () {
+        const responseFilterNode = helper.getNode('e8041f6236cbaee4')
+        responseFilterNode.registers = 20
+        responseFilterNode.filter = 'test'
+        responseFilterNode.error = sinon.stub()
+        responseFilterNode.send = sinon.spy()
+
+        const msg = {
+          payload: [{ name: 'test', value: 1 }, { name: 'other', value: 2 }]
+        }
+        responseFilterNode.emit('input', msg)
+
+        sinon.assert.notCalled(responseFilterNode.error)
+        sinon.assert.calledOnce(responseFilterNode.send)
+        assert.strictEqual(msg.payload.length, 1)
+        assert.strictEqual(msg.payload[0].name, 'test')
         done()
       })
     })
@@ -133,8 +155,9 @@ describe('Response Filter node Testing', function () {
         const internalDebugStub = sinon.stub(mbCore, 'internalDebug')
         responseFilterNode.showWarnings = true
         responseFilterNode.registers = 5
+        // Raw register array — length check applies
         const msg = {
-          payload: [{ name: 'test' }]
+          payload: [1]
         }
         responseFilterNode.emit('input', msg)
         sinon.assert.calledWith(internalDebugStub, '1 Registers And Filter Length Of 5 Does Not Match')
