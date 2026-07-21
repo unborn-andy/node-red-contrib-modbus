@@ -3,11 +3,48 @@ const address = require('address')
 const core = require('../../src/core/modbus-core')
 
 if (!global.portList) {
-  global.portList = [0]
+  global.portList = []
 }
 
 class PortHelper {
   startPort = 0
+
+  /**
+   * Allocate an OS-ephemeral free TCP port (worker-safe under mocha --parallel).
+   * Uses listen(0) so two processes cannot pick the same port from a shared random range.
+   */
+  getPort = () => {
+    return new Promise((resolve, reject) => {
+      const server = net.createServer()
+      server.once('error', (err) => {
+        try {
+          server.close()
+        } catch (e) {
+          // ignore close errors after listen failure
+        }
+        reject(err)
+      })
+      server.listen(0, '127.0.0.1', () => {
+        let port
+        try {
+          port = server.address().port
+        } catch (err) {
+          server.close()
+          reject(err)
+          return
+        }
+        server.close((closeErr) => {
+          if (closeErr) {
+            reject(closeErr)
+            return
+          }
+          global.portList.push(port)
+          this.startPort = port
+          resolve(port)
+        })
+      })
+    })
+  }
 
   getRandomArbitrary (min, max) {
     return Math.floor(Math.random() * (max - min) + min)
@@ -35,21 +72,6 @@ class PortHelper {
     })
 
     return isDuplicate
-  }
-
-  getPort = () => {
-    if (this.startPort === 0 || this.startPort >= 45000 || this.startPort <= 20000) {
-      this.init(20000, 45000)
-    } else {
-      this.startPort = this.getRandomArbitrary(this.startPort + this.getRandomArbitrary(3, 12), 50000)
-    }
-
-    if (global.portList.includes(this.startPort)) {
-      this.startPort = this.getPort()
-    }
-
-    global.portList.push(this.startPort)
-    return this.startPort
   }
 
   tryListen (port, maxPort, hostname, callback) {

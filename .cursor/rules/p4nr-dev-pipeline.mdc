@@ -1,0 +1,35 @@
+---
+description: "P4NR 3-team pipeline for node-red-contrib-modbus v5 Open Source"
+alwaysApply: true
+---
+
+# P4NR Development Pipeline — v5 OSS
+
+Public LTS line: `node-red-contrib-modbus` v5.x.
+
+## Repo Boundary
+
+| v5 OSS (this repo) | v6 closed (`P4NR/modbus/...`) |
+|--------------------|-------------------------------|
+| Public GitHub PRs | Private next major |
+| Server in-package | Server split out |
+| No TLS | Modbus-Client-TLS |
+| `debug` logging | `winston` |
+
+## Teams
+
+| Team | Agent | Writes |
+|------|-------|--------|
+| 1 | `p4nr-spec-author` | `docs/p4nr/capabilities/`, `plans/` |
+| 2 | `p4nr-spec-reviewer` | `docs/p4nr/reviews/` |
+| 3 | `p4nr-developer` | `src/`, `test/` (after APPROVE) |
+
+Flow: Team 1 → Team 2 → GATE 1 → Team 3 → GATE 2.
+
+## OSS Rules
+
+1. No code before APPROVE in `docs/p4nr/reviews/`
+2. Backwards compatibility in v5 — breaking changes need spec justification
+3. User-visible changes need CHANGELOG entry
+4. After `src/` changes: `npm run build`
+5. Node tests: Mocha + test-helper only

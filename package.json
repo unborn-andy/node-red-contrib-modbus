@@ -1,10 +1,10 @@
 {
   "name": "node-red-contrib-modbus",
-  "version": "5.45.2",
+  "version": "5.46.0",
   "private": false,
   "description": "The all in one Modbus TCP, UDP and Serial contribution long term supported package for Node-RED.",
   "dependencies": {
-    "@openp4nr/modbus-serial": "https://dl.cloudsmith.io/public/iniationware-gmbh/plus4nodered/npm/openp4nr/modbus-serial/8.4.0/openp4nr-modbus-serial-8.4.0.tgz",
+    "@openp4nr/modbus-serial": "8.4.0",
     "@xstate/fsm": "~2.1.0",
     "bson": "~6.9.0",
     "debug": "~4.3.7",
@@ -19,17 +19,17 @@
   },
   "keywords": [
     "node-red",
-    "plusfornodered",
+    "plus4nodered",
     "modbus",
     "automation",
     "biancoroyal"
   ],
   "engines": {
-    "node": ">=18.5"
+    "node": ">=22"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/biancoroyal/node-red-contrib-modbus.git"
+    "url": "https://github.com/BiancoRoyal/node-red-contrib-modbus.git"
   },
   "node-red": {
     "version": ">=3",
@@ -65,7 +65,8 @@
   "homepage": "https://plus4nodered.com/",
   "scripts": {
     "changelog": "npm run rewrite-changelog",
-    "test": "npm run lint && mocha ./test --parallel --recursive --reporter dot --timeout 6000",
+    "test": "npm run lint && mocha ./test --parallel --recursive --reporter dot --timeout 20000",
+    "test:ci": "npm run lint && mocha ./test --parallel --recursive --reporter dot --timeout 20000",
     "test:slow": "npm run lint && mocha ./test --recursive --reporter dot --timeout 12000",
     "test:verbose": "npm run lint && mocha ./test --recursive",
     "test:withStop": "npm run lint && mocha ./test --recursive --bail",
@@ -77,7 +78,7 @@
     "test-nyc": "nyc --reporter=html --reporter=text mocha --recursive",
     "test-npx": "npx --yes nyc@latest --reporter=html --reporter=text mocha ./test --parallel --recursive --reporter dot --timeout 10000",
     "test-with-coverage": "nyc --reporter=lcovonly mocha --recursive -R spec && cat ./coverage/lcov.info | codacy-coverage --token $CODACY_COVERAGE_TOKEN && rm -rf ./coverage",
-    "coverage": "npm run lint && nyc --reporter=html --reporter=text mocha ./test --parallel --recursive --reporter dot --timeout 10000",
+    "coverage": "npm run lint && nyc --reporter=html --reporter=text mocha ./test --parallel --recursive --reporter dot --timeout 30000",
     "coverage-nyc": "npm run lint && nyc report --reporter=text-lcov | coveralls",
     "build": "npm run lint && gulp",
     "prepublishOnly": "npm run clean && npm run lint && npm run rewrite-changelog && npm test && npm run coverage && npm run build",
@@ -96,7 +97,7 @@
     "@babel/core": "^7.24.5",
     "@babel/preset-env": "^7.24.5",
     "@babel/register": "^7.24.5",
-    "@node-red/nodes": "^3.1.9",
+    "@node-red/nodes": "^4.0.9",
     "address": "^2.0.1",
     "chai": "^3.5.0",
     "codacy-coverage": "^3.4.0",

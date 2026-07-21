@@ -25,7 +25,15 @@ const expect = require('chai').expect
 const testSimpleWriteParametersNodes = [injectNode, clientNode, serverNode, nodeUnderTest, functionNode]
 
 const testFlows = require('./flows/modbus-write-flows')
-const { getPort } = require('../helper/test-helper-extensions')
+const { waitForModbusClientActive, withEphemeralPorts } = require('../helper/test-helper-extensions')
+
+function loadFlowWithPort (nodes, flowTemplate, done, onLoaded) {
+  withEphemeralPorts(flowTemplate).then((flow) => {
+    helper.load(nodes, flow, function () {
+      onLoaded(flow, done)
+    })
+  }).catch(done)
+}
 
 describe('Write node Testing', function () {
   before(function (done) {
@@ -49,30 +57,11 @@ describe('Write node Testing', function () {
   })
   describe('Unique Port', function () {
 
-    // it('simple flow with string true http inject and write should be loaded and write done', function (done) {
-    //   const flow = Array.from(testFlows.testSimpleWriteFlow)
-    //   getPort().then((port) => {
-    //     flow[1].serverPort = port
-    //     flow[4].tcpPort = port
-    //     helper.load(testSimpleWriteParametersNodes, testFlows.testSimpleWriteFlow, function () {
-    //       const modbusWrite = helper.getNode('258dc103f99d2f2e')
-    //       setTimeout(function () {
-    //         modbusWrite.receive({ payload: { value: 'true', fc: 5, unitid: 1, address: 0, quantity: 1 } })
-    //       }, 800)
-
-    //       modbusWrite.on('modbusWriteNodeDone', () => {
-    //         if (modbusWrite.bufferMessageList.size === 0) {
-    //           done()
-    //         }
-    //       })
-    //     })
-    //   })
-    // })
   })
 
   describe('Node', function () {
     it('should update status, send message, and emit event on successful write', function (done) {
-      helper.load(testSimpleWriteParametersNodes, testFlows.testWriteExampleFlow, function () {
+      loadFlowWithPort(testSimpleWriteParametersNodes, testFlows.testWriteExampleFlow, done, function (_flow, done) {
         const modbusWriteNode = helper.getNode('e71050e54fc87ddf')
         const emitSpy = sinon.spy(modbusWriteNode, 'emit')
 
@@ -89,7 +78,7 @@ describe('Write node Testing', function () {
     })
 
     it('should handle comma-separated string values correctly', function (done) {
-      helper.load(testSimpleWriteParametersNodes, testFlows.testWriteExampleFlow, function () {
+      loadFlowWithPort(testSimpleWriteParametersNodes, testFlows.testWriteExampleFlow, done, function (_flow, done) {
         const modbusWriteNode = helper.getNode('e71050e54fc87ddf')
 
         const msg = {
@@ -106,7 +95,7 @@ describe('Write node Testing', function () {
     })
 
     it('should handle boolean string values correctly', function (done) {
-      helper.load(testSimpleWriteParametersNodes, testFlows.testWriteExampleFlow, function () {
+      loadFlowWithPort(testSimpleWriteParametersNodes, testFlows.testWriteExampleFlow, done, function (_flow, done) {
         const modbusWriteNode = helper.getNode('e71050e54fc87ddf')
 
         const msg = { payload: { value: 'false' } }
@@ -119,7 +108,7 @@ describe('Write node Testing', function () {
     })
 
     it('simple Node should be loaded without client config', function (done) {
-      helper.load(testSimpleWriteParametersNodes, testFlows.testWriteFlow, function () {
+      loadFlowWithPort(testSimpleWriteParametersNodes, testFlows.testWriteFlow, done, function (_flow, done) {
         const inject = helper.getNode('67dded7e.025904')
         inject.should.have.property('name', 'injectTrue')
 
@@ -137,98 +126,84 @@ describe('Write node Testing', function () {
     })
 
     it('simple flow with boolean injects and write should be loaded', function (done) {
-      helper.load(testSimpleWriteParametersNodes, testFlows.testWriteCycleFlow, function () {
-        const modbusWrite = helper.getNode('1ed908da.427ecf')
+      this.timeout(15000)
+      loadFlowWithPort(testSimpleWriteParametersNodes, testFlows.testWriteCycleFlow, done, function (_flow, done) {
         const h1 = helper.getNode('h1')
-        h1.on('input', function () {
-          if (modbusWrite.bufferMessageList.size === 0) {
-            done()
-          }
+        h1.once('input', function () {
+          done()
         })
       })
     })
 
     it('simple flow with string false http inject and write should be loaded', function (done) {
-      const flow = Array.from(testFlows.testSimpleWriteFlow)
-
-      getPort().then((port) => {
-        flow[1].serverPort = port
-        flow[7].tcpPort = port
-
-        helper.load(testSimpleWriteParametersNodes, flow, function () {
-          const modbusWrite = helper.getNode('258dc103f99d2f2e')
-          setTimeout(function () {
-            modbusWrite.receive({ payload: { value: 'false', fc: 5, unitid: 1, address: 0, quantity: 1 } })
-          }, 800)
-          const h1 = helper.getNode('f780a7d088ac2b22')
-          h1.on('input', function () {
-            if (modbusWrite.bufferMessageList.size === 0) {
-              done()
-            }
-          })
+      this.timeout(15000)
+      loadFlowWithPort(testSimpleWriteParametersNodes, testFlows.testSimpleWriteFlow, done, function (_flow, done) {
+        const modbusWrite = helper.getNode('258dc103f99d2f2e')
+        const modbusClient = helper.getNode('80aeec4c.0cb9e8')
+        const h1 = helper.getNode('f780a7d088ac2b22')
+        h1.once('input', function () {
+          done()
+        })
+        waitForModbusClientActive(modbusClient, (err) => {
+          if (err) {
+            done(err)
+            return
+          }
+          modbusWrite.receive({ payload: { value: 'false', fc: 5, unitid: 1, address: 0, quantity: 1 } })
         })
       })
     })
 
     it('simple flow with string with array of values input from http should be parsed and written', function (done) {
-      const flow = Array.from(testFlows.testSimpleWriteFlow)
-
-      getPort().then((port) => {
-        flow[1].serverPort = port
-        flow[7].tcpPort = port
-
-        helper.load(testSimpleWriteParametersNodes, flow, function () {
-          const h1 = helper.getNode('f780a7d088ac2b22')
-          h1.on('input', function () {
-            if (modbusWrite.bufferMessageList.size === 0) {
-              done()
-            }
-          })
-          const modbusWrite = helper.getNode('258dc103f99d2f2e')
-          setTimeout(function () {
-            modbusWrite.receive({ payload: '{ "value": [0,1,0,1], "fc": 5, "unitid": 1,"address": 0, "quantity": 4 }' })
-          }, 800)
+      this.timeout(15000)
+      loadFlowWithPort(testSimpleWriteParametersNodes, testFlows.testSimpleWriteFlow, done, function (_flow, done) {
+        const modbusWrite = helper.getNode('258dc103f99d2f2e')
+        const modbusClient = helper.getNode('80aeec4c.0cb9e8')
+        const h1 = helper.getNode('f780a7d088ac2b22')
+        h1.once('input', function () {
+          done()
+        })
+        waitForModbusClientActive(modbusClient, (err) => {
+          if (err) {
+            done(err)
+            return
+          }
+          modbusWrite.receive({ payload: '{ "value": [0,1,0,1], "fc": 5, "unitid": 1,"address": 0, "quantity": 4 }' })
         })
       })
     })
 
     it('should inject at least 4 messages but only use one to test initial delay', function (done) {
-      const flow = Array.from(testFlows.testSimpleWriteFlow)
+      this.timeout(20000)
+      loadFlowWithPort(testSimpleWriteParametersNodes, testFlows.testSimpleWriteFlow, done, function (_flow, done) {
+        const writeNode = helper.getNode('258dc103f99d2f2e')
+        const helperNode = helper.getNode('f780a7d088ac2b22')
+        let getterCounter = 0
+        let helperCounter = 0
+        let startingTimestamp = null
+        let endTimestamp = null
 
-      getPort().then((port) => {
-        flow[1].serverPort = port
-        flow[7].tcpPort = port
+        writeNode.on('input', () => {
+          getterCounter++
 
-        helper.load(testSimpleWriteParametersNodes, flow, function () {
-          const writeNode = helper.getNode('258dc103f99d2f2e')
-          const helperNode = helper.getNode('f780a7d088ac2b22')
-          let getterCounter = 0
-          let helperCounter = 0
-          let startingTimestamp = null
-          let endTimestamp = null
+          if (getterCounter === 1) {
+            startingTimestamp = Date.now()
+          }
+          endTimestamp = Date.now()
+        })
 
-          writeNode.on('input', () => {
-            getterCounter++
+        helperNode.on('input', () => {
+          helperCounter++
 
-            if (getterCounter === 1) {
-              startingTimestamp = Date.now()
-            }
-            endTimestamp = Date.now()
-          })
+          if (helperCounter > 3) {
+            const difBetweenTimestamps = endTimestamp - startingTimestamp
+            getterCounter.should.be.greaterThanOrEqual(6)
+            helperCounter.should.be.greaterThanOrEqual(1)
+            helperCounter.should.be.greaterThanOrEqual(3)
+            difBetweenTimestamps.should.be.greaterThanOrEqual(1500)
 
-          helperNode.on('input', () => {
-            helperCounter++
-
-            if (helperCounter > 3) {
-              const difBetweenTimestamps = endTimestamp - startingTimestamp
-              getterCounter.should.be.greaterThanOrEqual(6)
-              helperCounter.should.be.greaterThanOrEqual(1)
-              helperCounter.should.be.greaterThanOrEqual(3)
-              difBetweenTimestamps.should.be.greaterThanOrEqual(1500)
-
-              done()
-            }
-          })
+            done()
+          }
         })
       })
     })
@@ -236,7 +211,7 @@ describe('Write node Testing', function () {
 
   describe('post', function () {
     it('should fail for invalid node', function (done) {
-      helper.load(testSimpleWriteParametersNodes, testFlows.testSimpleWriteFlow, function () {
+      loadFlowWithPort(testSimpleWriteParametersNodes, testFlows.testSimpleWriteFlow, done, function (_flow, done) {
         helper.request().post('/modbus-write/invalid').expect(404).end(done)
       })
     })

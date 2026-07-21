@@ -24,6 +24,15 @@ helper.init(require.resolve('node-red'), {
 })
 
 const testFlows = require('./flows/modbus-flex-fc-flows')
+const { withEphemeralPorts } = require('../helper/test-helper-extensions')
+
+function loadFlow (nodes, flowTemplate, callback) {
+  withEphemeralPorts(flowTemplate).then((flow) => {
+    helper.load(nodes, flow, callback)
+  }).catch((err) => {
+    throw err
+  })
+}
 
 describe('modbus flex fc unit test', function () {
   before(function (done) {
@@ -47,7 +56,7 @@ describe('modbus flex fc unit test', function () {
   })
 
   it('should load read_discrete_inputs', function (done) {
-    helper.load(testFlexFcNodes, testFlows.testReadDiscreteInputs, function () {
+    loadFlow(testFlexFcNodes, testFlows.testReadDiscreteInputs, function () {
       const modbusFlexFc = helper.getNode('91a3b0e2bf45f30f')
       modbusFlexFc.should.have.property('name', 'read_discrete_inputs')
       modbusFlexFc.should.have.property('type', 'modbus-flex-fc')
@@ -58,7 +67,7 @@ describe('modbus flex fc unit test', function () {
   })
 
   it('should be in waiting state if it cannot connect', function (done) {
-    helper.load(testFlexFcNodes, testFlows.testFlexClientWithoutConnection, function () {
+    loadFlow(testFlexFcNodes, testFlows.testFlexClientWithoutConnection, function () {
       const modbusClientNode = helper.getNode('87bd51afcaba0962')
       const isReady = modbusClientNode.statusText
       isReady.should.be.equal('waiting ...')
@@ -69,7 +78,7 @@ describe('modbus flex fc unit test', function () {
   })
 
   it('a node should be able to figure out its state!', function (done) {
-    helper.load(testFlexFcNodes, testFlows.testReadCoilMode, function () {
+    loadFlow(testFlexFcNodes, testFlows.testReadCoilMode, function () {
       const node = helper.getNode('d975b1203f71a3b5')
       node.isNotReadyForInput().should.be.equal(true)
       done()
@@ -79,7 +88,7 @@ describe('modbus flex fc unit test', function () {
   })
 
   it('a flex-fc-node should be able to send a message to the next node in the chain', function (done) {
-    helper.load(testFlexFcNodes, testFlows.testReadCoilMode, function () {
+    loadFlow(testFlexFcNodes, testFlows.testReadCoilMode, function () {
       const node = helper.getNode('29dc12925bb8e2d4')
       node.on('input', function (msg) {
         msg.should.have.property('topic', 'customFc')
@@ -92,7 +101,7 @@ describe('modbus flex fc unit test', function () {
   })
 
   it('a flex-fc-node should be able to receive a invalid payload', function (done) {
-    helper.load(testFlexFcNodes, testFlows.testReadCoilMode, function () {
+    loadFlow(testFlexFcNodes, testFlows.testReadCoilMode, function () {
       const node = helper.getNode('d975b1203f71a3b5')
 
       // Catch the message that was put out by stubbing the node.warn method...
@@ -108,7 +117,7 @@ describe('modbus flex fc unit test', function () {
   })
 
   it('a flex-fc-node that receives a valid message, should reject the input as it is not ready for input yet', function (done) {
-    helper.load(testFlexFcNodes, testFlows.testReadCoilMode, function () {
+    loadFlow(testFlexFcNodes, testFlows.testReadCoilMode, function () {
       const node = helper.getNode('d975b1203f71a3b5')
       node.environmentVerbosity = true
       // Catch the message that was put out by stubbing the node.warn method...
@@ -125,7 +134,7 @@ describe('modbus flex fc unit test', function () {
   })
 
   it('a flex-fc-node that receives a valid message and is ready for input, will still reject the input when its inactive!', function (done) {
-    helper.load(testFlexFcNodes, testFlows.testReadCoilMode, function () {
+    loadFlow(testFlexFcNodes, testFlows.testReadCoilMode, function () {
       const node = helper.getNode('d975b1203f71a3b5')
       node.environmentVerbosity = true
       let mockVerboseWarnMessage = ''
@@ -142,7 +151,7 @@ describe('modbus flex fc unit test', function () {
   })
 
   it('a flex-fc-node which is ready and active whom received a well formed message will try to communicate with the server', function (done) {
-    helper.load(testFlexFcNodes, testFlows.testReadCoilMode, function () {
+    loadFlow(testFlexFcNodes, testFlows.testReadCoilMode, function () {
       const node = helper.getNode('d975b1203f71a3b5')
       const client = helper.getNode('5c2b693859e05456')
 
@@ -167,7 +176,7 @@ describe('modbus flex fc unit test', function () {
   })
 
   it('a flex-fc-node which calls onModbusRegistered should set the state of the node to Registered', function (done) {
-    helper.load(testFlexFcNodes, testFlows.testReadCoilMode, function () {
+    loadFlow(testFlexFcNodes, testFlows.testReadCoilMode, function () {
       const node = helper.getNode('d975b1203f71a3b5')
 
       node.showStatusActivities = true
@@ -180,7 +189,7 @@ describe('modbus flex fc unit test', function () {
   })
 
   it('a flex-fc-node which calls onModbusInit should set the state of the node to initialized', function (done) {
-    helper.load(testFlexFcNodes, testFlows.testReadCoilMode, function () {
+    loadFlow(testFlexFcNodes, testFlows.testReadCoilMode, function () {
       const node = helper.getNode('d975b1203f71a3b5')
 
       node.showStatusActivities = true
@@ -193,7 +202,7 @@ describe('modbus flex fc unit test', function () {
   })
 
   it('a flex-fc-node which calls onModbusActive should set the state of the node to active', function (done) {
-    helper.load(testFlexFcNodes, testFlows.testReadCoilMode, function () {
+    loadFlow(testFlexFcNodes, testFlows.testReadCoilMode, function () {
       const node = helper.getNode('d975b1203f71a3b5')
 
       node.showStatusActivities = true
@@ -206,7 +215,7 @@ describe('modbus flex fc unit test', function () {
   })
 
   it('a flex-fc-node which calls onModbusQueue should set the state of the node to queue', function (done) {
-    helper.load(testFlexFcNodes, testFlows.testReadCoilMode, function () {
+    loadFlow(testFlexFcNodes, testFlows.testReadCoilMode, function () {
       const node = helper.getNode('d975b1203f71a3b5')
 
       node.showStatusActivities = true
@@ -219,7 +228,7 @@ describe('modbus flex fc unit test', function () {
   })
 
   it('a flex-fc-node which calls onModbusError should set the state of the node to failure', function (done) {
-    helper.load(testFlexFcNodes, testFlows.testReadCoilMode, function () {
+    loadFlow(testFlexFcNodes, testFlows.testReadCoilMode, function () {
       const node = helper.getNode('d975b1203f71a3b5')
 
       node.showStatusActivities = true
@@ -232,7 +241,7 @@ describe('modbus flex fc unit test', function () {
   })
 
   it('a flex-fc-node with the showErrors property set to true, which calls onModbusError should set the state of the node to failure and log the given failure message with warn', function (done) {
-    helper.load(testFlexFcNodes, testFlows.testReadCoilMode, function () {
+    loadFlow(testFlexFcNodes, testFlows.testReadCoilMode, function () {
       const node = helper.getNode('d975b1203f71a3b5')
 
       node.showStatusActivities = false
@@ -249,7 +258,7 @@ describe('modbus flex fc unit test', function () {
   })
 
   it('a flex-fc-node with the showErrors property set to false, which calls onModbusError should set the state of the node to failure and not log the given error message', function (done) {
-    helper.load(testFlexFcNodes, testFlows.testReadCoilMode, function () {
+    loadFlow(testFlexFcNodes, testFlows.testReadCoilMode, function () {
       const node = helper.getNode('d975b1203f71a3b5')
 
       node.showErrors = false
@@ -265,7 +274,7 @@ describe('modbus flex fc unit test', function () {
   })
 
   it('a flex-fc-node which calls onModbusBroken should set the state of the node to broken', function (done) {
-    helper.load(testFlexFcNodes, testFlows.testReadCoilMode, function () {
+    loadFlow(testFlexFcNodes, testFlows.testReadCoilMode, function () {
       const node = helper.getNode('d975b1203f71a3b5')
 
       node.showStatusActivities = true
@@ -278,7 +287,7 @@ describe('modbus flex fc unit test', function () {
   })
 
   it('a flex-fc-node should if the showStatusActivities property is set and onModbusReadDone is called set the statusText to "reading done"', function (done) {
-    helper.load(testFlexFcNodes, testFlows.testReadCoilMode, function () {
+    loadFlow(testFlexFcNodes, testFlows.testReadCoilMode, function () {
       const node = helper.getNode('d975b1203f71a3b5')
 
       node.showStatusActivities = true
@@ -311,7 +320,7 @@ describe('modbus flex fc unit test', function () {
   })
 
   it('should remove all listeners from the node on removeNodeListenerFromModbusClient', function (done) {
-    helper.load(testFlexFcNodes, testFlows.testReadCoilMode, function () {
+    loadFlow(testFlexFcNodes, testFlows.testReadCoilMode, function () {
       const node = helper.getNode('d975b1203f71a3b5')
       // We cannot test this! only see if it runs without throwing any error!
       node.removeNodeListenerFromModbusClient()

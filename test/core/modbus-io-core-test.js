@@ -306,6 +306,19 @@ describe('Core IO Testing', function () {
         done()
       })
 
+      it('should catch and log error when getValueFromBufferByDataType throws (Task 4.7)', () => {
+        // 2-byte buffer + 32-bit read at offset 0: readInt32BE(0) needs 4 bytes → throws RangeError
+        const valueNames = [{ dataType: 'Integer', bits: '32', registerAddress: 0 }]
+        const register = [0, 1] // length 2 → isRegisterSizeWrong(register,0,32) passes
+        const responseBuffer = { buffer: Buffer.from([0x01, 0x02]) } // only 2 bytes; readInt32BE(0) throws
+        const internalDebugSpy = sinon.spy(coreIOUnderTest, 'internalDebug')
+
+        coreIOUnderTest.convertValuesByType(valueNames, register, responseBuffer, false)
+
+        expect(internalDebugSpy.calledOnce).to.equal(true)
+        internalDebugSpy.restore()
+      })
+
       it('should handle non-Buffer responseBuffer gracefully', () => {
         const valueNames = [{ dataType: 'int16', registerAddress: 0, bits: 16 }]
         const register = [0]
@@ -318,8 +331,74 @@ describe('Core IO Testing', function () {
         expect(internalDebugSpy.calledWith('Response Buffer Is Not A Buffer')).to.equal(false)
 
         internalDebugSpy.restore()
-        expect(internalDebugSpy.calledWith('Response Buffer Is Not A Buffer')).to.equal(false)
+      })
+
+      it('should log when responseBuffer is not a Buffer and logging enabled', () => {
+        const valueNames = [{ dataType: 'Integer', bits: '16', registerAddress: 0 }]
+        const register = [0, 1]
+        const responseBuffer = { buffer: {} }
+        const internalDebugSpy = sinon.spy(coreIOUnderTest, 'internalDebug')
+
+        coreIOUnderTest.convertValuesByType(valueNames, register, responseBuffer, true)
+
+        expect(internalDebugSpy.calledWith('Response Buffer Is Not A Buffer')).to.equal(true)
         internalDebugSpy.restore()
+      })
+
+      it('should skip invalid items in convertValuesByType when logging enabled', () => {
+        const valueNames = [
+          { registerAddress: -1, bits: 16, dataType: 'Word' },
+          { dataType: 'Word', bits: '16', registerAddress: 0 }
+        ]
+        const register = [0, 1, 2, 3]
+        const responseBuffer = { buffer: Buffer.from([0x00, 0x01, 0x00, 0x02]) }
+        const internalDebugSpy = sinon.spy(coreIOUnderTest, 'internalDebug')
+
+        coreIOUnderTest.convertValuesByType(valueNames, register, responseBuffer, true)
+
+        expect(internalDebugSpy.calledWithMatch(/Item Not Valid To Convert/)).to.equal(true)
+        internalDebugSpy.restore()
+      })
+
+      it('should break convertValuesByType when register size is wrong', () => {
+        const valueNames = [
+          { dataType: 'Integer', bits: '32', registerAddress: 99 }
+        ]
+        const register = [0, 1]
+        const responseBuffer = { buffer: Buffer.from([0, 1, 2, 3]) }
+        const internalDebugSpy = sinon.spy(coreIOUnderTest, 'internalDebug')
+
+        coreIOUnderTest.convertValuesByType(valueNames, register, responseBuffer, true)
+
+        expect(internalDebugSpy.calledWithMatch(/Insert Value Register Reached/)).to.equal(true)
+        internalDebugSpy.restore()
+      })
+
+      it('should use valueNames as payload when useIOForPayload is true', () => {
+        const node = {
+          useIOFile: true,
+          ioFile: { lastUpdatedAt: new Date() },
+          useIOForPayload: true,
+          logIOActivities: false,
+          bufferMessageList: new Map()
+        }
+        const msg = {
+          payload: { address: '0', fc: '3', quantity: '1' },
+          topic: 'testTopic',
+          responseBuffer: Buffer.from([0x01, 0x02])
+        }
+        const valueNames = [{ name: 'test', value: 1 }]
+        const getOrigStub = sinon.stub(coreIOUnderTest.core, 'getOriginalMessage').returns({ payload: null, topic: 'testTopic' })
+        const nameStub = sinon.stub(coreIOUnderTest, 'nameValuesFromIOFile').returns(valueNames)
+        const filterStub = sinon.stub(coreIOUnderTest, 'filterValueNames').returns(valueNames)
+
+        const result = coreIOUnderTest.buildMessageWithIO(node, [], msg.responseBuffer, msg)
+
+        assert.strictEqual(result[0].payload, valueNames)
+        assert.deepStrictEqual(result[0].values, [])
+        getOrigStub.restore()
+        nameStub.restore()
+        filterStub.restore()
       })
 
       it('should set item.value correctly for dataType "Integer" and bits "32"', (done) => {
@@ -347,6 +426,16 @@ describe('Core IO Testing', function () {
         const item = { dataType: 'Integer', bits: '64', registerAddress: 0 }
         const result = coreIOUnderTest.getValueFromBufferByDataType(item, 0, buffer, false)
         expect(result.value).to.equal(18446744073709552000)
+        done()
+      })
+
+      it('should set item.value correctly for dataType "Integer" and bits "64" at non-zero register offset', (done) => {
+        const buffer = Buffer.alloc(12)
+        buffer.writeUInt32BE(0, 4)
+        buffer.writeUInt32BE(5, 8)
+        const item = { dataType: 'Integer', bits: '64', registerAddress: 2 }
+        const result = coreIOUnderTest.getValueFromBufferByDataType(item, 4, buffer, false)
+        expect(result.value).to.equal(5)
         done()
       })
 

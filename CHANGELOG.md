@@ -1,4 +1,30 @@
-# [5.43.0](https://github.com/biancoroyal/node-red-contrib-modbus/compare/v5.41.0...v5.43.0) (2024-11-02)
+# [5.46.0](https://github.com/biancoroyal/node-red-contrib-modbus/compare/5.45.0...5.46.0) (2026-07-10)
+
+
+### Bug Fixes
+
+* **modbus-io-config:** reject directory paths and harden close handler (EISDIR)
+* **modbus-io-core:** fix 64-bit Integer buffer offset for registerAddress > 0
+* add a new error handler for clients that are processed by jsmodbus ([6ff1f03](https://github.com/biancoroyal/node-red-contrib-modbus/commit/6ff1f03bbc954cd77d1691d3b994a29b7726588f))
+* faulty removal of input message ([9e0a1ea](https://github.com/biancoroyal/node-red-contrib-modbus/commit/9e0a1ea7b20ff71c2dda2e5f55d3baaf018170f3))
+
+
+### Features
+
+* Adapt the modbus-queue to make it possible to evict messages ([b8bfe12](https://github.com/biancoroyal/node-red-contrib-modbus/commit/b8bfe125c71a8a14241c916765992b74c2262767))
+* change the logic of processNextMessage() ([78a7219](https://github.com/biancoroyal/node-red-contrib-modbus/commit/78a7219d21a06a03efd09d8005cb58dd3d417f2f))
+* repo quality and FSM hardening for v5.46.0 ([362785b](https://github.com/biancoroyal/node-red-contrib-modbus/commit/362785b9f542ba74fec4978469cf3c9a32de43fc))
+* The client can now remove messages from the queue ([876322b](https://github.com/biancoroyal/node-red-contrib-modbus/commit/876322bdbba11ff648b7d7a760c30e713a5780c5))
+
+
+### Reverts
+
+* Revert "Merge branch 'hotfix/memory-leak'" ([67ed567](https://github.com/biancoroyal/node-red-contrib-modbus/commit/67ed56767f78b3a8f031770007837b3cdebd5e7d))
+* Revert "Merge branch 'hotfix/keep-msg-prop'" ([b2c1bef](https://github.com/biancoroyal/node-red-contrib-modbus/commit/b2c1bef733541a8c6e3ae2a6fbff0154fe2ada41))
+
+
+
+## [5.44.1](https://github.com/biancoroyal/node-red-contrib-modbus/compare/5.44.0...5.44.1) (2025-09-16)
 
 
 ### Bug Fixes
@@ -30,6 +56,13 @@
 
 ### Features
 
+* adapt the flex-getter to enable support for oversized messages ([d76a49e](https://github.com/biancoroyal/node-red-contrib-modbus/commit/d76a49ee07f797f1e80233528c6fba948576cb49))
+* adapt the modbus getter to enable support for oversized messages ([3a42222](https://github.com/biancoroyal/node-red-contrib-modbus/commit/3a422222434ff96ff0b831ece57cf13955ec669d))
+* adapt the read node to insert the new flag into the payload ([f23bfb7](https://github.com/biancoroyal/node-red-contrib-modbus/commit/f23bfb75dffa0db14fd91be74b9cbe0b875b543e))
+* add a new checkbox to the modbus read node for oversized messages ([f9be72c](https://github.com/biancoroyal/node-red-contrib-modbus/commit/f9be72cc9026fa5d567140ae7e4ec7de92ebbaa4))
+* add new branch for reading oversized messages ([91bd58e](https://github.com/biancoroyal/node-red-contrib-modbus/commit/91bd58ed8d8525f9a393a185690e94ef5d30e3ce))
+* add oversized message checkbox to modbus-getter ([92d7e63](https://github.com/biancoroyal/node-red-contrib-modbus/commit/92d7e639c109515701156dfbf387d6084e75358a))
+* add oversized message checkbox to the flex-getter ui ([6b26a90](https://github.com/biancoroyal/node-red-contrib-modbus/commit/6b26a903d14ea16534ea339194652efe2ce37817))
 * **flex-fc:** add load button ([04fb46e](https://github.com/biancoroyal/node-red-contrib-modbus/commit/04fb46ed4d2764276b7bcfae1800f9ac342da85a))
 * **flex-fc:** add load button for an improved ui experience ([895f446](https://github.com/biancoroyal/node-red-contrib-modbus/commit/895f446bd99c8ea65bb5f96f7e4d0d79dec3da8e))
 * **flex-fc:** map file needs to be json ([28f6010](https://github.com/biancoroyal/node-red-contrib-modbus/commit/28f60102e07b54d4bd5b86660b4d382341dd54b3))
@@ -291,7 +324,7 @@
 
 
 
-# [5.2.0](https://github.com/biancoroyal/node-red-contrib-modbus/compare/5.1.0-0...v5.2.0) (2019-12-08)
+# [5.2.0](https://github.com/biancoroyal/node-red-contrib-modbus/compare/v4.1.3...v5.2.0) (2019-12-08)
 
 
 ### Bug Fixes
@@ -305,14 +338,6 @@
 ### Features
 
 * [#161](https://github.com/biancoroyal/node-red-contrib-modbus/issues/161) multiple RTU devices via UnitID ([b0b5011](https://github.com/biancoroyal/node-red-contrib-modbus/commit/b0b5011be4ab5e7c06ab44fd9df7b0ff5ddd0fd8))
-
-
-
-# [5.1.0-0](https://github.com/biancoroyal/node-red-contrib-modbus/compare/v4.1.3...5.1.0-0) (2019-11-24)
-
-
-### Features
-
 * new state machine from xstate ([57aef99](https://github.com/biancoroyal/node-red-contrib-modbus/commit/57aef9956187ee9d70e862b226f3a3ef5e091528))
 
 

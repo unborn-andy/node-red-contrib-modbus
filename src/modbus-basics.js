@@ -8,22 +8,25 @@
 'use strict'
 // SOURCE-MAP-REQUIRED
 
-// eslint-disable-next-line no-var
-var de = de || { biancoroyal: { modbus: { basics: {} } } } // eslint-disable-line no-use-before-define
-de.biancoroyal.modbus.basics.internalDebug = de.biancoroyal.modbus.basics.internalDebug || require('debug')('contribModbus:basics') // eslint-disable-line no-use-before-define
-de.biancoroyal.modbus.basics.util = de.biancoroyal.modbus.basics.util || require('util') // eslint-disable-line no-use-before-define
+const internalDebug = require('debug')('contribModbus:basics')
+const util = require('util')
 
 /**
  * Modbus core node basics.
  * @module NodeRedModbusBasics
  */
-de.biancoroyal.modbus.basics.statusLog = false
+const basics = {}
+
+basics.internalDebug = internalDebug
+basics.util = util
+basics.statusLog = false
+
 /**
  *
  * @param unit
  * @returns {string}
  */
-de.biancoroyal.modbus.basics.get_timeUnit_name = function (unit) {
+basics.get_timeUnit_name = function (unit) {
   let unitAbbreviation = ''
 
   switch (unit) {
@@ -46,7 +49,7 @@ de.biancoroyal.modbus.basics.get_timeUnit_name = function (unit) {
   return unitAbbreviation
 }
 
-de.biancoroyal.modbus.basics.calc_rateByUnit = function (rate, rateUnit) {
+basics.calc_rateByUnit = function (rate, rateUnit) {
   switch (rateUnit) {
     case 'ms':
       break
@@ -72,7 +75,7 @@ de.biancoroyal.modbus.basics.calc_rateByUnit = function (rate, rateUnit) {
  * @param showActivities
  * @returns {{fill: string, shape: string, status: *}}
  */
-de.biancoroyal.modbus.basics.setNodeStatusProperties = function (statusValue, showActivities) {
+basics.setNodeStatusProperties = function (statusValue, showActivities) {
   let fillValue = 'yellow'
   let shapeValue = 'ring'
 
@@ -161,7 +164,7 @@ de.biancoroyal.modbus.basics.setNodeStatusProperties = function (statusValue, sh
   return { fill: fillValue, shape: shapeValue, status: statusText }
 }
 
-de.biancoroyal.modbus.basics.setNodeStatusByResponseTo = function (statusValue, response, node) {
+basics.setNodeStatusByResponseTo = function (statusValue, response, node) {
   let fillValue = 'red'
   let shapeValue = 'dot'
 
@@ -188,7 +191,7 @@ de.biancoroyal.modbus.basics.setNodeStatusByResponseTo = function (statusValue, 
   node.status({ fill: fillValue, shape: shapeValue, text: this.util.inspect(response, false, null) })
 }
 
-de.biancoroyal.modbus.basics.setNodeStatusResponse = function (length, node) {
+basics.setNodeStatusResponse = function (length, node) {
   node.status({
     fill: 'green',
     shape: 'dot',
@@ -196,7 +199,7 @@ de.biancoroyal.modbus.basics.setNodeStatusResponse = function (length, node) {
   })
 }
 
-de.biancoroyal.modbus.basics.setModbusError = function (node, modbusClient, err, msg) {
+basics.setModbusError = function (node, modbusClient, err, msg) {
   if (err) {
     switch (err.message) {
       case 'Timed out':
@@ -218,7 +221,7 @@ de.biancoroyal.modbus.basics.setModbusError = function (node, modbusClient, err,
   }
 }
 
-de.biancoroyal.modbus.basics.setNodeStatusTo = function (statusValue, node) {
+basics.setNodeStatusTo = function (statusValue, node) {
   if (node.showStatusActivities) {
     if (statusValue !== node.statusText) {
       const statusOptions = this.setNodeStatusProperties(statusValue, node.showStatusActivities)
@@ -234,42 +237,42 @@ de.biancoroyal.modbus.basics.setNodeStatusTo = function (statusValue, node) {
   }
 }
 
-de.biancoroyal.modbus.basics.onModbusInit = function (node) {
+basics.onModbusInit = function (node) {
   this.setNodeStatusTo('initialize', node)
 }
 
-de.biancoroyal.modbus.basics.onModbusConnect = function (node) {
+basics.onModbusConnect = function (node) {
   this.setNodeStatusTo('connected', node)
 }
 
-de.biancoroyal.modbus.basics.onModbusActive = function (node) {
+basics.onModbusActive = function (node) {
   this.setNodeStatusTo('active', node)
 }
 
-de.biancoroyal.modbus.basics.onModbusError = function (node, failureMsg) {
+basics.onModbusError = function (node, failureMsg) {
   this.setNodeStatusTo('failure', node)
   if (node.showErrors) {
     node.warn(failureMsg)
   }
 }
 
-de.biancoroyal.modbus.basics.onModbusClose = function (node) {
+basics.onModbusClose = function (node) {
   this.setNodeStatusTo('closed', node)
 }
 
-de.biancoroyal.modbus.basics.onModbusQueue = function (node) {
+basics.onModbusQueue = function (node) {
   this.setNodeStatusTo('queueing', node)
 }
 
-de.biancoroyal.modbus.basics.onModbusBroken = function (node, modbusClient) {
+basics.onModbusBroken = function (node, modbusClient) {
   this.setNodeStatusTo('reconnecting after ' + modbusClient.reconnectTimeout + ' msec.', node)
 }
 
-de.biancoroyal.modbus.basics.setNodeDefaultStatus = function (node) {
+basics.setNodeDefaultStatus = function (node) {
   node.status({ fill: 'green', shape: 'ring', text: 'active' })
 }
 
-de.biancoroyal.modbus.basics.initModbusClientEvents = function (node, modbusClient) {
+basics.initModbusClientEvents = function (node, modbusClient) {
   if (node.showStatusActivities) {
     modbusClient.on('mbinit', () => { this.onModbusInit(node) })
     modbusClient.on('mbqueue', () => { this.onModbusQueue(node) })
@@ -283,15 +286,15 @@ de.biancoroyal.modbus.basics.initModbusClientEvents = function (node, modbusClie
   }
 }
 
-de.biancoroyal.modbus.basics.invalidPayloadIn = function (msg) {
+basics.invalidPayloadIn = function (msg) {
   return !(msg && Object.prototype.hasOwnProperty.call(msg, 'payload'))
 }
 
-de.biancoroyal.modbus.basics.invalidSequencesIn = function (msg) {
+basics.invalidSequencesIn = function (msg) {
   return !(msg && Object.prototype.hasOwnProperty.call(msg, 'sequences'))
 }
 
-de.biancoroyal.modbus.basics.sendEmptyMsgOnFail = function (node, err, msg) {
+basics.sendEmptyMsgOnFail = function (node, err, msg) {
   if (node.emptyMsgOnFail) {
     msg.payload = ''
 
@@ -306,13 +309,13 @@ de.biancoroyal.modbus.basics.sendEmptyMsgOnFail = function (node, err, msg) {
   }
 }
 
-de.biancoroyal.modbus.basics.logMsgError = function (node, err, msg) {
+basics.logMsgError = function (node, err, msg) {
   if (node.showErrors) {
     node.error(err, msg)
   }
 }
 
-de.biancoroyal.modbus.basics.buildNewMessage = function (keepMsgProperties, msg, minMsg) {
+basics.buildNewMessage = function (keepMsgProperties, msg, minMsg) {
   if (keepMsgProperties) {
     return Object.assign(msg, minMsg)
   } else {
@@ -320,4 +323,4 @@ de.biancoroyal.modbus.basics.buildNewMessage = function (keepMsgProperties, msg,
   }
 }
 
-module.exports = de.biancoroyal.modbus.basics
+module.exports = basics
