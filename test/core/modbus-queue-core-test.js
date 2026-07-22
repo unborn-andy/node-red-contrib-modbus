@@ -197,6 +197,8 @@ describe('Core IO Testing', function () {
         })
     })
 
+    // Push-time dedupe: while a UnitId already has a pending drain slot, do not
+    // append again. Re-arm after shift()+send is covered in modbus-client-test (#574).
     it('should not duplicate unitId entries in unitSendingAllowed', function (done) {
       const unitId = 3
       const node = {

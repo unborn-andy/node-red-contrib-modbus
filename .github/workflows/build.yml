@@ -61,11 +61,13 @@ jobs:
             exit 1
           fi
           echo "OIDC token request URL is present"
-      - run: npm install
+      # @openp4nr/modbus-serial is a root package.json remote tarball (public Cloudsmith).
+      # npm@latest defaults can set allow-remote=none → EALLOWREMOTE without this.
+      - run: npm install --allow-remote=root
       - run: npm run test:ci
       - run: npm run build
       # Never set NODE_AUTH_TOKEN here — empty/legacy tokens bypass OIDC → ENEEDAUTH/E404.
       - name: Publish to npm (OIDC)
         run: |
           unset NODE_AUTH_TOKEN NPM_TOKEN
-          npm publish --access public
+          npm publish --access public --allow-remote=root

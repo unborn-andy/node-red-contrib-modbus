@@ -1179,9 +1179,9 @@
   resolved "https://registry.npmjs.org/@one-ini/wasm/-/wasm-0.1.1.tgz"
   integrity sha512-XuySG1E38YScSJoMlqovLru4KTUNSjgVTIjyh7qMX6aNN5HY5Ct5LhRJdxO79JtTzKfzV/bnWpz+zquYrISsvw==
 
-"@openp4nr/modbus-serial@8.4.0":
+"@openp4nr/modbus-serial@https://dl.cloudsmith.io/public/iniationware-gmbh/plus4nodered/npm/openp4nr/modbus-serial/8.4.0/openp4nr-modbus-serial-8.4.0.tgz":
   version "8.4.0"
-  resolved "https://npm.cloudsmith.io/iniationware-gmbh/plus4nodered/@openp4nr/modbus-serial/-/modbus-serial-8.4.0.tgz"
+  resolved "https://dl.cloudsmith.io/public/iniationware-gmbh/plus4nodered/npm/openp4nr/modbus-serial/8.4.0/openp4nr-modbus-serial-8.4.0.tgz"
   integrity sha512-mhbwagv/cbma/aBaeO6PkRiiakojdhGq5oS8+S/zLk1TBlL9iP8HuF1yYyhLIWYK4KcZl8Ym+HvuI03Zmsrm8Q==
   dependencies:
     debug "^4.1.1"

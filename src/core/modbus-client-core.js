@@ -85,11 +85,20 @@ coreClient.getActualUnitId = function (node, msg) {
   }
 }
 
-coreClient.validateAddressAndQuantity = function (msg, fc, cberr) {
+coreClient.validateAddressAndQuantity = function (msg, fc, cberr, node) {
+  const rejectValidation = function (err) {
+    // When a dequeued command fails validation, unlock the unit / FSM (#574 related)
+    if (node && typeof node.activateSending === 'function') {
+      coreClient.activateSendingOnFailure(node, cberr, err, msg)
+    } else {
+      cberr(err, msg)
+    }
+  }
+
   if (msg.payload.address !== undefined && msg.payload.address !== null) {
     const address = parseInt(msg.payload.address, 10)
     if (!Number.isFinite(address) || address < MODBUS_ADDRESS_MIN || address > MODBUS_ADDRESS_MAX) {
-      cberr(new Error('Modbus address out of range: ' + msg.payload.address), msg)
+      rejectValidation(new Error('Modbus address out of range: ' + msg.payload.address))
       return false
     }
   }
@@ -97,7 +106,7 @@ coreClient.validateAddressAndQuantity = function (msg, fc, cberr) {
   if (limits && msg.payload.quantity !== undefined && msg.payload.quantity !== null) {
     const quantity = parseInt(msg.payload.quantity, 10)
     if (!Number.isFinite(quantity) || quantity < limits.min || quantity > limits.max) {
-      cberr(new Error('Modbus quantity out of range for FC' + fc + ': ' + msg.payload.quantity), msg)
+      rejectValidation(new Error('Modbus quantity out of range for FC' + fc + ': ' + msg.payload.quantity))
       return false
     }
   }
@@ -229,7 +238,7 @@ coreClient.readModbusByFunctionCode = function (node, msg, cb, cberr) {
   const nodeLog = coreClient.getLogFunction(node)
   const fc = parseInt(msg.payload.fc)
 
-  if (!coreClient.validateAddressAndQuantity(msg, fc, cberr)) {
+  if (!coreClient.validateAddressAndQuantity(msg, fc, cberr, node)) {
     return
   }
 
@@ -334,7 +343,7 @@ coreClient.readModbus = function (node, msg, cb, cberr) {
 }
 
 coreClient.writeModbusByFunctionCodeFive = function (node, msg, cb, cberr) {
-  if (!coreClient.validateAddressAndQuantity(msg, 5, cberr)) {
+  if (!coreClient.validateAddressAndQuantity(msg, 5, cberr, node)) {
     return
   }
   const rawValue = msg.payload.value
@@ -357,7 +366,7 @@ coreClient.writeModbusByFunctionCodeFive = function (node, msg, cb, cberr) {
 }
 
 coreClient.writeModbusByFunctionCodeFifteen = function (node, msg, cb, cberr) {
-  if (!coreClient.validateAddressAndQuantity(msg, 15, cberr)) {
+  if (!coreClient.validateAddressAndQuantity(msg, 15, cberr, node)) {
     return
   }
   if (parseInt(msg.payload.value.length) !== parseInt(msg.payload.quantity)) {
@@ -382,7 +391,7 @@ coreClient.writeModbusByFunctionCodeFifteen = function (node, msg, cb, cberr) {
 }
 
 coreClient.writeModbusByFunctionCodeSix = function (node, msg, cb, cberr) {
-  if (!coreClient.validateAddressAndQuantity(msg, 6, cberr)) {
+  if (!coreClient.validateAddressAndQuantity(msg, 6, cberr, node)) {
     return
   }
   node.client.writeRegister(parseInt(msg.payload.address), parseInt(msg.payload.value)).then(function (resp) {
@@ -402,7 +411,7 @@ coreClient.writeModbusByFunctionCodeSix = function (node, msg, cb, cberr) {
 }
 
 coreClient.writeModbusByFunctionCodeSixteen = function (node, msg, cb, cberr) {
-  if (!coreClient.validateAddressAndQuantity(msg, 16, cberr)) {
+  if (!coreClient.validateAddressAndQuantity(msg, 16, cberr, node)) {
     return
   }
   if (parseInt(msg.payload.value.length) !== parseInt(msg.payload.quantity)) {
