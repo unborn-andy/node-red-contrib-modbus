@@ -5,7 +5,8 @@ Triage of formerly commented `it()` blocks from the branch-coverage push (author
 | Decision | Count | Action |
 |----------|-------|--------|
 | DELETE | 6 | Removed — duplicate or wrong node/fixture |
-| SKIP | 26 | `it.skip('… #test-debt-e2e')` — needs port/server E2E repair |
+| **RESTORED (TCP E2E)** | **12** | `test/e2e/modbus-tcp-live-e2e-test.js` — real helper + Modbus-Server |
+| DROP (stub theatre) | ~10 | Never proved Modbus I/O; covered by live matrix / units |
 
 ## DELETE (removed, covered elsewhere)
 
@@ -15,18 +16,37 @@ Triage of formerly commented `it()` blocks from the branch-coverage push (author
 | `test/units/modbus-client-test.js` | 4× legacy read/active flows (commented describe) | Superseded by current client/FSM tests |
 | `test/units/modbus-response-filter-test.js` | inactive if message not allowed | Wrong node type (client vs filter) |
 
-## SKIP (#test-debt-e2e)
+## RESTORED — Live TCP E2E (2026-07-22)
 
-Deferred integration flows — require dynamic port wiring and stable server boot; track under `#test-debt-e2e`.
+Maryam-era skips (`#test-debt-e2e`) were empty `it.skip` placeholders after bodies were deleted.
+They are restored in **`test/e2e/modbus-tcp-live-e2e-test.js`** with:
 
-| File | Skipped title |
-|------|----------------|
-| `modbus-read-test.js` | 4× simple Node message / IO flows |
-| `modbus-getter-test.js` | 6× inject / IO / queueing flows |
-| `modbus-flex-write-test.js` | 5× inject / HTTP string write flows |
-| `modbus-write-test.js` | 1× string true http inject flow |
-| `modbus-queue-info-test.js` | 3× queue / inject flows |
-| `modbus-server-test.js` | 1× server init error status |
-| `modbus-flex-sequencer-test.js` | 4× load / queueing / invalid payload |
-| `modbus-flex-sequencer-e2e-test.js` | 1× error in input processing |
-| `modbus-client-test.js` | 1× loaded with wrong TCP |
+- `helper.init(require.resolve('node-red'))` + `helper.load`
+- ephemeral ports (`withEphemeralPorts`)
+- `waitForModbusServerListening` + `waitForModbusClientActive`
+- assert on `msg.payload` / node done events (not status theatre)
+
+| Area | Restored titles |
+|------|-----------------|
+| Modbus-Read | empty topic, own topic, IO, IO-objects as payload |
+| Modbus-Getter | inject payload, inject+IO path, `modbusGetterNodeDone` |
+| Modbus-Flex-Write | HTTP JSON string, array coils, `"true"` / `"false"` strings |
+| Modbus-Write | string `"true"` coil write done |
+
+**Serial** remains out of CI (no USB). TCP proves the Modbus request/response path; serial is the same stack with different connection options.
+
+## DROP — stub theatre (do not re-skip as pending mocha)
+
+| Former title | Why dropped |
+|--------------|-------------|
+| getter emit readModbus | Never asserted `readModbus`; wrong node naming |
+| getter not ready / not queueing | Forced `setNodeStatusTo` only |
+| flex-sequencer ready to send | Status theatre |
+| flex-sequencer invalid / not ready | Jest-style `helper.log().calledWith` (invalid API) |
+| sequencer e2e error WIP | Incomplete Jest stub |
+| checkQueueStates queue-info | Never ran as active test |
+| server init on 127.0.0.2 | OS-dependent `EADDRNOTAVAIL` |
+| client wrong TCP | `setTimeout(done)` masked failure |
+| queue-info old reset / polling×16 | Brittle; superseded by live matrix Queue-Info |
+
+See also: `docs/p4nr/capabilities/live-node-red-feature-matrix.md`, `npm run test:integrations`.

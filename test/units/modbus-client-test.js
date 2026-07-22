@@ -22,7 +22,14 @@ const helper = require('node-red-node-test-helper')
 helper.init(require.resolve('node-red'))
 
 const testFlows = require('./flows/modbus-client-flows')
-const { getPort, useFakeTimers } = require('../helper/test-helper-extensions')
+const {
+  getPort,
+  useFakeTimers,
+  withEphemeralPorts,
+  waitForLiveClientServer,
+  waitForHelperModbusExchange,
+  onceDone
+} = require('../helper/test-helper-extensions')
 
 describe('Client node Unit Testing', function () {
   before(function (done) {
@@ -514,234 +521,32 @@ describe('Client node Unit Testing', function () {
       })
     })
 
-    it('should send a message to the server when it receives a message', function (done) {
-      const flow = Array.from(testFlows.testSimpleReadWithClientFlow)
-
-      getPort().then((port) => {
-        flow[1].serverPort = port
-        flow[5].tcpPort = port
-
-        helper.load(testModbusClientNodes, flow, function () {
-          const modbusReadNode = helper.getNode('466860d5.3f6358')
-          const serverNode = helper.getNode('serverNode')
-          modbusReadNode.on('input', function (msg) {
-            msg.should.have.property('payload', 'test message')
-            serverNode.receive(msg)
+    it('should exchange Coil data with a live Modbus-Server over TCP', function (done) {
+      const finish = onceDone(done)
+      withEphemeralPorts(testFlows.testSimpleReadWithClientFlow).then((flow) => {
+        // Speed up polling for the test
+        const readCfg = flow.find((n) => n && n.type === 'modbus-read')
+        if (readCfg) {
+          readCfg.rate = '200'
+          readCfg.rateUnit = 'ms'
+        }
+        helper.load(testModbusClientNodes, flow, function (loadErr) {
+          if (loadErr) return finish(loadErr)
+          const server = helper.getNode('445454e4.968564')
+          const client = helper.getNode('466860d5.3f6358')
+          const helperOut = helper.getNode('h1')
+          waitForLiveClientServer(server, client, function (readyErr) {
+            if (readyErr) return finish(readyErr)
+            waitForHelperModbusExchange(helperOut, function (exErr) {
+              if (exErr) return finish(exErr)
+              finish()
+            }, {
+              requireArray: true,
+              timeoutMessage: 'timeout waiting for Modbus-Read payload from live server'
+            })
           })
-          modbusReadNode.receive({ payload: 'test message' })
-          done()
         })
-      })
-    })
-
-    it('should send a message to the server with the correct Modbus function code', function (done) {
-      const flow = Array.from(testFlows.testSimpleReadWithClientFlow)
-
-      getPort().then((port) => {
-        flow[1].serverPort = port
-        flow[5].tcpPort = port
-
-        helper.load(testModbusClientNodes, flow, function () {
-          const modbusReadNode = helper.getNode('466860d5.3f6358')
-          const serverNode = helper.getNode('serverNode')
-          modbusReadNode.on('input', function (msg) {
-            msg.should.have.property('payload', 'test message')
-            msg.should.have.property('modbus', { functionCode: 3 })
-            serverNode.receive(msg)
-          })
-          modbusReadNode.receive({ payload: 'test message' })
-          done()
-        })
-      })
-    })
-
-    it('should send a message to the server with the correct slave ID', function (done) {
-      const flow = Array.from(testFlows.testSimpleReadWithClientFlow)
-
-      getPort().then((port) => {
-        flow[1].serverPort = port
-        flow[5].tcpPort = port
-
-        helper.load(testModbusClientNodes, flow, function () {
-          const modbusReadNode = helper.getNode('466860d5.3f6358')
-          const serverNode = helper.getNode('serverNode')
-          modbusReadNode.on('input', function (msg) {
-            msg.should.have.property('payload', 'test message')
-            msg.should.have.property('modbus', { slave: 1 })
-            serverNode.receive(msg)
-          })
-          modbusReadNode.receive({ payload: 'test message' })
-          done()
-        })
-      })
-    })
-
-    it('should send a message to the server with the correct starting address', function (done) {
-      const flow = Array.from(testFlows.testSimpleReadWithClientFlow)
-
-      getPort().then((port) => {
-        flow[1].serverPort = port
-        flow[5].tcpPort = port
-
-        helper.load(testModbusClientNodes, flow, function () {
-          const modbusReadNode = helper.getNode('466860d5.3f6358')
-          const serverNode = helper.getNode('serverNode')
-          modbusReadNode.on('input', function (msg) {
-            msg.should.have.property('payload', 'test message')
-            msg.should.have.property('modbus', { startingAddress: 1 })
-            serverNode.receive(msg)
-          })
-          modbusReadNode.receive({ payload: 'test message' })
-          done()
-        })
-      })
-    })
-
-    it('should send a message to the server with the correct number of registers', function (done) {
-      const flow = Array.from(testFlows.testSimpleReadWithClientFlow)
-
-      getPort().then((port) => {
-        flow[1].serverPort = port
-        flow[5].tcpPort = port
-
-        helper.load(testModbusClientNodes, flow, function () {
-          const modbusReadNode = helper.getNode('466860d5.3f6358')
-          const serverNode = helper.getNode('serverNode')
-          modbusReadNode.on('input', function (msg) {
-            msg.should.have.property('payload', 'test message')
-            msg.should.have.property('modbus', { quantity: 1 })
-            serverNode.receive(msg)
-          })
-          modbusReadNode.receive({ payload: 'test message' })
-          done()
-        })
-      })
-    })
-
-    it('should send a message to the server with the correct data type', function (done) {
-      const flow = Array.from(testFlows.testSimpleReadWithClientFlow)
-
-      getPort().then((port) => {
-        flow[1].serverPort = port
-        flow[5].tcpPort = port
-
-        helper.load(testModbusClientNodes, flow, function () {
-          const modbusReadNode = helper.getNode('466860d5.3f6358')
-          const serverNode = helper.getNode('serverNode')
-          modbusReadNode.on('input', function (msg) {
-            msg.should.have.property('payload', 'test message')
-            msg.should.have.property('modbus', { dataType: 'float' })
-            serverNode.receive(msg)
-          })
-          modbusReadNode.receive({ payload: 'test message' })
-          done()
-        })
-      })
-    })
-
-    it('should send a message to the server with the correct unit ID', function (done) {
-      const flow = Array.from(testFlows.testSimpleReadWithClientFlow)
-
-      getPort().then((port) => {
-        flow[1].serverPort = port
-        flow[5].tcpPort = port
-
-        helper.load(testModbusClientNodes, flow, function () {
-          const modbusReadNode = helper.getNode('466860d5.3f6358')
-          const serverNode = helper.getNode('serverNode')
-          modbusReadNode.on('input', function (msg) {
-            msg.should.have.property('payload', 'test message')
-            msg.should.have.property('modbus', { unitId: 1 })
-            serverNode.receive(msg)
-          })
-          modbusReadNode.receive({ payload: 'test message' })
-          done()
-        })
-      })
-    })
-
-    it('should send a message to the server with the correct TCP host', function (done) {
-      const flow = Array.from(testFlows.testSimpleReadWithClientFlow)
-
-      getPort().then((port) => {
-        flow[1].serverPort = port
-        flow[5].tcpPort = port
-
-        helper.load(testModbusClientNodes, flow, function () {
-          const modbusReadNode = helper.getNode('466860d5.3f6358')
-          const serverNode = helper.getNode('serverNode')
-          modbusReadNode.on('input', function (msg) {
-            msg.should.have.property('payload', 'test message')
-            msg.should.have.property('modbus', { tcpHost: '127.0.0.1' })
-            serverNode.receive(msg)
-          })
-          modbusReadNode.receive({ payload: 'test message' })
-          done()
-        })
-      })
-    })
-
-    it('should send a message to the server with the correct TCP port', function (done) {
-      const flow = Array.from(testFlows.testSimpleReadWithClientFlow)
-
-      getPort().then((port) => {
-        flow[1].serverPort = port
-        flow[5].tcpPort = port
-
-        helper.load(testModbusClientNodes, flow, function () {
-          const modbusReadNode = helper.getNode('466860d5.3f6358')
-          const serverNode = helper.getNode('serverNode')
-          modbusReadNode.on('input', function (msg) {
-            msg.should.have.property('payload', 'test message')
-            msg.should.have.property('modbus', { tcpPort: 12345 })
-            serverNode.receive(msg)
-          })
-          modbusReadNode.receive({ payload: 'test message' })
-          done()
-        })
-      })
-    })
-
-    it('should send a message to the server with the correct serial port', function (done) {
-      const flow = Array.from(testFlows.testSimpleReadWithClientFlow)
-
-      getPort().then((port) => {
-        flow[1].serverPort = port
-        flow[5].tcpPort = port
-
-        helper.load(testModbusClientNodes, flow, function () {
-          const modbusReadNode = helper.getNode('466860d5.3f6358')
-          const serverNode = helper.getNode('serverNode')
-          modbusReadNode.on('input', function (msg) {
-            msg.should.have.property('payload', 'test message')
-            msg.should.have.property('modbus', { serialPort: '/dev/ttyUSB0' })
-            serverNode.receive(msg)
-          })
-          modbusReadNode.receive({ payload: 'test message' })
-          done()
-        })
-      })
-    })
-
-    it('should send a message to the server with the correct serial baud rate', function (done) {
-      const flow = Array.from(testFlows.testSimpleReadWithClientFlow)
-
-      getPort().then((port) => {
-        flow[1].serverPort = port
-        flow[5].tcpPort = port
-
-        helper.load(testModbusClientNodes, flow, function () {
-          const modbusReadNode = helper.getNode('466860d5.3f6358')
-          const serverNode = helper.getNode('serverNode')
-          modbusReadNode.on('input', function (msg) {
-            msg.should.have.property('payload', 'test message')
-            msg.should.have.property('modbus', { serialBaudrate: 9600 })
-            serverNode.receive(msg)
-          })
-          modbusReadNode.receive({ payload: 'test message' })
-          done()
-        })
-      })
+      }).catch(finish)
     })
 
     it('should close client connection when no registered nodes', function (done) {
@@ -777,48 +582,6 @@ describe('Client node Unit Testing', function () {
           modbusClientNode.actualServiceState.value = 'stopped'
           modbusClientNode.closeConnectionWithoutRegisteredNodes(clientUserNodeId, _done)
           sinon.assert.calledWith(modbusClientNode.setStoppedState, clientUserNodeId, _done)
-          done()
-        })
-      })
-    })
-
-    it('should send a message to the server with the correct serial data bits', function (done) {
-      const flow = Array.from(testFlows.testSimpleReadWithClientFlow)
-
-      getPort().then((port) => {
-        flow[1].serverPort = port
-        flow[5].tcpPort = port
-
-        helper.load(testModbusClientNodes, flow, function () {
-          const modbusReadNode = helper.getNode('466860d5.3f6358')
-          const serverNode = helper.getNode('serverNode')
-          modbusReadNode.on('input', function (msg) {
-            msg.should.have.property('payload', 'test message')
-            msg.should.have.property('modbus', { serialDatabits: 8 })
-            serverNode.receive(msg)
-          })
-          modbusReadNode.receive({ payload: 'test message' })
-          done()
-        })
-      })
-    })
-
-    it('should send a message to the server with the correct serial stop bits', function (done) {
-      const flow = Array.from(testFlows.testSimpleReadWithClientFlow)
-
-      getPort().then((port) => {
-        flow[1].serverPort = port
-        flow[5].tcpPort = port
-
-        helper.load(testModbusClientNodes, flow, function () {
-          const modbusReadNode = helper.getNode('466860d5.3f6358')
-          const serverNode = helper.getNode('serverNode')
-          modbusReadNode.on('input', function (msg) {
-            msg.should.have.property('payload', 'test message')
-            msg.should.have.property('modbus', { serialStopbits: 1 })
-            serverNode.receive(msg)
-          })
-          modbusReadNode.receive({ payload: 'test message' })
           done()
         })
       })

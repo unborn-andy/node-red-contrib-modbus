@@ -25,9 +25,11 @@ const testFlows = require('./flows/modbus-flex-getter-flows')
 const mBasics = require('../../src/modbus-basics')
 const _ = require('underscore')
 
-const { getPort, waitForModbusClientActive } = require('../helper/test-helper-extensions')
+const { getPort, waitForModbusClientActive, withEphemeralPorts, muteAutoInjects, assertSurvivesInvalidThenExchanges, onceDone } = require('../helper/test-helper-extensions')
 
 describe('Flex Getter node Testing', function () {
+  this.timeout(process.env.CI ? 60000 : 30000)
+
   before(function (done) {
     helper.startServer(function () {
       done()
@@ -143,55 +145,65 @@ describe('Flex Getter node Testing', function () {
       }).catch(done)
     })
 
-    it('simple flow with wrong write inject should not crash', function (done) {
-      const flow = Array.from(testFlows.testFlexGetterFlow)
-
-      getPort().then((port) => {
-        flow[1].serverPort = port
-        flow[6].tcpPort = port
-
-        helper.load(testFlexGetterNodes, flow, function () {
-          const modbusGetter = helper.getNode('bc5a61b6.a3972')
-          setTimeout(function () {
-            modbusGetter.receive({ payload: '{ "value": "true", "fc": 5, "unitid": 1,"address": 0, "quantity": 1 }' })
-            done()
-          }, 800)
+    it('simple flow with wrong write inject should not crash and still read coils', function (done) {
+      const finish = onceDone(done)
+      withEphemeralPorts(testFlows.testFlexGetterFlow).then((flow) => {
+        muteAutoInjects(flow)
+        helper.load(testFlexGetterNodes, flow, function (loadErr) {
+          if (loadErr) return finish(loadErr)
+          assertSurvivesInvalidThenExchanges({
+            server: helper.getNode('445454e4.968564'),
+            client: helper.getNode('92e7bf63.2efd7'),
+            node: helper.getNode('bc5a61b6.a3972'),
+            successHelper: helper.getNode('d7d5a41f495c591e'),
+            // emptyMsgOnFail may emit; survival is proven by the following valid read
+            allowSuccessOnInvalid: true,
+            invalidMsg: { payload: { value: true, fc: 5, unitid: 1, address: 0, quantity: 1 } },
+            validMsg: { payload: { fc: 1, unitid: 1, address: 0, quantity: 4 } },
+            requireArray: true
+          }, finish)
         })
-      })
+      }).catch(finish)
     })
 
-    it('simple flow with wrong address inject should not crash', function (done) {
-      const flow = Array.from(testFlows.testFlexGetterFlow)
-
-      getPort().then((port) => {
-        flow[1].serverPort = port
-        flow[6].tcpPort = port
-
-        helper.load(testFlexGetterNodes, flow, function () {
-          const modbusGetter = helper.getNode('bc5a61b6.a3972')
-          setTimeout(function () {
-            modbusGetter.receive({ payload: '{ "fc": 1, "unitid": 1,"address": -1, "quantity": 1 }' })
-            done()
-          }, 800)
+    it('simple flow with wrong address inject should not crash and still read coils', function (done) {
+      const finish = onceDone(done)
+      withEphemeralPorts(testFlows.testFlexGetterFlow).then((flow) => {
+        muteAutoInjects(flow)
+        helper.load(testFlexGetterNodes, flow, function (loadErr) {
+          if (loadErr) return finish(loadErr)
+          assertSurvivesInvalidThenExchanges({
+            server: helper.getNode('445454e4.968564'),
+            client: helper.getNode('92e7bf63.2efd7'),
+            node: helper.getNode('bc5a61b6.a3972'),
+            successHelper: helper.getNode('d7d5a41f495c591e'),
+            allowSuccessOnInvalid: true,
+            invalidMsg: { payload: { fc: 1, unitid: 1, address: -1, quantity: 1 } },
+            validMsg: { payload: { fc: 1, unitid: 1, address: 0, quantity: 4 } },
+            requireArray: true
+          }, finish)
         })
-      })
+      }).catch(finish)
     })
 
-    it('simple flow with wrong quantity inject should not crash', function (done) {
-      const flow = Array.from(testFlows.testFlexGetterFlow)
-
-      getPort().then((port) => {
-        flow[1].serverPort = port
-        flow[6].tcpPort = port
-
-        helper.load(testFlexGetterNodes, flow, function () {
-          const modbusGetter = helper.getNode('bc5a61b6.a3972')
-          setTimeout(function () {
-            modbusGetter.receive({ payload: '{ "fc": 1, "unitid": 1,"address": 1, "quantity": -1 }' })
-            done()
-          }, 800)
+    it('simple flow with wrong quantity inject should not crash and still read coils', function (done) {
+      const finish = onceDone(done)
+      withEphemeralPorts(testFlows.testFlexGetterFlow).then((flow) => {
+        muteAutoInjects(flow)
+        helper.load(testFlexGetterNodes, flow, function (loadErr) {
+          if (loadErr) return finish(loadErr)
+          assertSurvivesInvalidThenExchanges({
+            server: helper.getNode('445454e4.968564'),
+            client: helper.getNode('92e7bf63.2efd7'),
+            node: helper.getNode('bc5a61b6.a3972'),
+            successHelper: helper.getNode('d7d5a41f495c591e'),
+            allowSuccessOnInvalid: true,
+            invalidMsg: { payload: { fc: 1, unitid: 1, address: 1, quantity: -1 } },
+            validMsg: { payload: { fc: 1, unitid: 1, address: 0, quantity: 4 } },
+            requireArray: true
+          }, finish)
         })
-      })
+      }).catch(finish)
     })
 
     it('should be inactive if message not allowed', function (done) {

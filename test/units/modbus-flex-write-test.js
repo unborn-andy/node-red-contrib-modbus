@@ -23,11 +23,13 @@ const expect = require('chai').expect
 const testFlows = require('./flows/modbus-flex-write-flows')
 const mBasics = require('../../src/modbus-basics')
 const _ = require('underscore')
-const { getPort, deferAfterLoad } = require('../helper/test-helper-extensions')
+const { getPort, withEphemeralPorts, muteAutoInjects, assertSurvivesInvalidThenExchanges, onceDone } = require('../helper/test-helper-extensions')
 
 const testWriteParametersNodes = [catchNode, injectNode, functionNode, clientNode, serverNode, nodeUnderTest]
 
 describe('Flex Write node Testing', function () {
+  this.timeout(process.env.CI ? 60000 : 30000)
+
   before(function (done) {
     helper.startServer(function () {
       done()
@@ -155,84 +157,80 @@ describe('Flex Write node Testing', function () {
       })
     })
 
-    it('simple flow with wrong inject should not crash', function (done) {
-      const flow = Array.from(testFlows.testWriteParametersFlow)
-
-      getPort().then((port) => {
-        flow[3].serverPort = port
-        flow[7].tcpPort = port
-
-        helper.load(testWriteParametersNodes, flow, function () {
-          const h1 = helper.getNode('h1')
-          h1.on('input', function () {
-            throw Error('Should Not Get A Message On Wrong Input To Flex Writer')
-          })
-          const flexWriter = helper.getNode('82fe7fe4.7b7bc8')
-          deferAfterLoad(function () {
-            flexWriter.receive({})
-          }, done)
+    it('simple flow with wrong inject should not crash and still write a coil', function (done) {
+      const finish = onceDone(done)
+      withEphemeralPorts(testFlows.testWriteParametersFlow).then((flow) => {
+        muteAutoInjects(flow)
+        helper.load(testWriteParametersNodes, flow, function (loadErr) {
+          if (loadErr) return finish(loadErr)
+          assertSurvivesInvalidThenExchanges({
+            server: helper.getNode('178284ea.5055ab'),
+            client: helper.getNode('80aeec4c.0cb9e8'),
+            node: helper.getNode('82fe7fe4.7b7bc8'),
+            successHelper: helper.getNode('h1'),
+            allowSuccessOnInvalid: false,
+            invalidMsg: {},
+            validMsg: { payload: { value: true, fc: 5, unitid: 1, address: 0, quantity: 1 } }
+          }, finish)
         })
-      })
+      }).catch(finish)
     })
 
-    it('simple flow with wrong FC inject should not crash', function (done) {
-      const flow = Array.from(testFlows.testWriteParametersFlow)
-
-      getPort().then((port) => {
-        flow[3].serverPort = port
-        flow[7].tcpPort = port
-
-        helper.load(testWriteParametersNodes, flow, function () {
-          const h1 = helper.getNode('h1')
-          h1.on('input', function () {
-            throw Error('Should Not Get A Message On Wrong Input To Flex Writer')
-          })
-          const flexWriter = helper.getNode('82fe7fe4.7b7bc8')
-          deferAfterLoad(function () {
-            flexWriter.receive({ payload: '{ "value": true, "fc": 1, "unitid": 1,"address": 0, "quantity": 1 }' })
-          }, done)
+    it('simple flow with wrong FC inject should not crash and still write a coil', function (done) {
+      const finish = onceDone(done)
+      withEphemeralPorts(testFlows.testWriteParametersFlow).then((flow) => {
+        muteAutoInjects(flow)
+        helper.load(testWriteParametersNodes, flow, function (loadErr) {
+          if (loadErr) return finish(loadErr)
+          assertSurvivesInvalidThenExchanges({
+            server: helper.getNode('178284ea.5055ab'),
+            client: helper.getNode('80aeec4c.0cb9e8'),
+            node: helper.getNode('82fe7fe4.7b7bc8'),
+            successHelper: helper.getNode('h1'),
+            allowSuccessOnInvalid: false,
+            invalidMsg: { payload: { value: true, fc: 1, unitid: 1, address: 0, quantity: 1 } },
+            validMsg: { payload: { value: true, fc: 5, unitid: 1, address: 0, quantity: 1 } }
+          }, finish)
         })
-      })
+      }).catch(finish)
     })
 
-    it('simple flow with wrong address inject should not crash', function (done) {
-      const flow = Array.from(testFlows.testWriteParametersFlow)
-
-      getPort().then((port) => {
-        flow[3].serverPort = port
-        flow[7].tcpPort = port
-
-        helper.load(testWriteParametersNodes, flow, function () {
-          const h1 = helper.getNode('h1')
-          h1.on('input', function () {
-            throw Error('Should Not Get A Message On Wrong Input To Flex Writer')
-          })
-          const flexWriter = helper.getNode('82fe7fe4.7b7bc8')
-          deferAfterLoad(function () {
-            flexWriter.receive({ payload: '{ "value": true, "fc": 5, "unitid": 1,"address": -1, "quantity": 1 }' })
-          }, done)
+    it('simple flow with wrong address inject should not crash and still write a coil', function (done) {
+      const finish = onceDone(done)
+      withEphemeralPorts(testFlows.testWriteParametersFlow).then((flow) => {
+        muteAutoInjects(flow)
+        helper.load(testWriteParametersNodes, flow, function (loadErr) {
+          if (loadErr) return finish(loadErr)
+          assertSurvivesInvalidThenExchanges({
+            server: helper.getNode('178284ea.5055ab'),
+            client: helper.getNode('80aeec4c.0cb9e8'),
+            node: helper.getNode('82fe7fe4.7b7bc8'),
+            successHelper: helper.getNode('h1'),
+            allowSuccessOnInvalid: false,
+            invalidMsg: { payload: { value: true, fc: 5, unitid: 1, address: -1, quantity: 1 } },
+            validMsg: { payload: { value: true, fc: 5, unitid: 1, address: 0, quantity: 1 } }
+          }, finish)
         })
-      })
+      }).catch(finish)
     })
 
-    it('simple flow with wrong quantity inject should not crash', function (done) {
-      const flow = Array.from(testFlows.testWriteParametersFlow)
-
-      getPort().then((port) => {
-        flow[3].serverPort = port
-        flow[7].tcpPort = port
-
-        helper.load(testWriteParametersNodes, flow, function () {
-          const h1 = helper.getNode('h1')
-          h1.on('input', function () {
-            throw Error('Should Not Get A Message On Wrong Input To Flex Writer')
-          })
-          const flexWriter = helper.getNode('82fe7fe4.7b7bc8')
-          deferAfterLoad(function () {
-            flexWriter.receive({ payload: '{ "value": true, "fc": 5, "unitid": 1,"address": 1, "quantity": -1 }' })
-          }, done)
+    it('simple flow with wrong quantity inject should not crash and still write a coil', function (done) {
+      const finish = onceDone(done)
+      withEphemeralPorts(testFlows.testWriteParametersFlow).then((flow) => {
+        muteAutoInjects(flow)
+        helper.load(testWriteParametersNodes, flow, function (loadErr) {
+          if (loadErr) return finish(loadErr)
+          assertSurvivesInvalidThenExchanges({
+            server: helper.getNode('178284ea.5055ab'),
+            client: helper.getNode('80aeec4c.0cb9e8'),
+            node: helper.getNode('82fe7fe4.7b7bc8'),
+            successHelper: helper.getNode('h1'),
+            allowSuccessOnInvalid: false,
+            invalidMsg: { payload: { value: true, fc: 5, unitid: 1, address: 1, quantity: -1 } },
+            validMsg: { payload: { value: true, fc: 5, unitid: 1, address: 0, quantity: 1 } }
+          }, finish)
         })
-      })
+      }).catch(finish)
     })
 
     it('should be inactive if message not allowed', function (done) {

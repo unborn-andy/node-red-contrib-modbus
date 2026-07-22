@@ -27,8 +27,16 @@ const mbBasics = require('../../src/modbus-basics.js')
 const nodeList = [injectNode, functionNode, commentNode, modbusServerNode, modbusClientNode, modbusReadNode, modbusFlexFc]
 
 const testFcFlexFlows = require('./flows/modbus-fc-flex-e2e-flows')
+const {
+  withEphemeralPorts,
+  waitForLiveClientServer,
+  waitForHelperModbusExchange,
+  onceDone
+} = require('../helper/test-helper-extensions')
 
 describe('Modbus E2E Flex FC-Functionality tests', function () {
+  this.timeout(process.env.CI ? 60000 : 30000)
+
   before(function (done) {
     helper.startServer(function () {
       done()
@@ -274,17 +282,39 @@ describe('Modbus E2E Flex FC-Functionality tests', function () {
       })
     })
 
-    it('the node can successfully receive data from the outside world', function (done) {
-      helper.load(nodeList, testFcFlexFlows.testFlexFCFunctionality, function () {
-        const flexNode = helper.getNode('4f80ae4fa5b8af80')
-        const counter = 0
-        flexNode.on('input', function (msg) {
-          if (counter === 1 && msg.topic === 'polling') {
-            done()
-          }
+    it('the node can successfully receive data from the outside world via live Modbus TCP', function (done) {
+      const finish = onceDone(done)
+      withEphemeralPorts(testFcFlexFlows.testFlexFCFunctionality).then(function (flow) {
+        helper.load(nodeList, flow, function (loadErr) {
+          if (loadErr) return finish(loadErr)
+
+          const flexNode = helper.getNode('4f80ae4fa5b8af80')
+          const server = helper.getNode('878d5e5d85492c86')
+          const client = helper.getNode('82f3cd97a8d8cb41')
+          const helperOut = helper.getNode('db0d38bb98c3b66d')
+
+          waitForLiveClientServer(server, client, function (readyErr) {
+            if (readyErr) return finish(readyErr)
+
+            waitForHelperModbusExchange(helperOut, function (exErr) {
+              if (exErr) return finish(exErr)
+              finish()
+            }, {
+              timeoutMessage: 'timeout waiting for flex-fc live Modbus response'
+            })
+
+            flexNode.receive({
+              topic: 'customFc',
+              payload: {
+                unitid: 1,
+                fc: 0x01,
+                requestCard: flexNode.requestCard,
+                responseCard: flexNode.responseCard
+              }
+            })
+          })
         })
-        done()
-      })
+      }).catch(finish)
     })
 
     it('the node can load the default files from the drive via a POST Request', function (done) {
