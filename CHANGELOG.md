@@ -1,3 +1,13 @@
+# [5.50.1](https://github.com/BiancoRoyal/node-red-contrib-modbus/compare/v5.50.0...v5.50.1) (2026-07-22)
+
+
+### Bug Fixes
+
+* **client:** re-arm sequential `unitSendingAllowed` after each command so buffered queues drain again ([#574](https://github.com/BiancoRoyal/node-red-contrib-modbus/issues/574)) — regression from 5.46.0 FR-QUEUE-02 dedupe; caused `Queue full for UnitId N` with `parallelUnitIdsAllowed: false`
+* **client:** unlock sending via `activateSendingOnFailure` when address/quantity validation rejects a dequeued command
+* **deps:** restore public Cloudsmith tarball URL for `@openp4nr/modbus-serial` so Node-RED palette installs work without private registry auth (regression from 5.46.0 version pin)
+
+
 # [5.50.0](https://github.com/BiancoRoyal/node-red-contrib-modbus/compare/v5.46.0...v5.50.0) (2026-07-21)
 
 

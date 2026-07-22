@@ -1087,5 +1087,153 @@ describe('Client node Unit Testing', function () {
         }).catch(done)
       })
     })
+
+    it('should re-arm unitSendingAllowed when remaining queue depth > 0 (#574)', function (done) {
+      loadClient(done, function (node, done) {
+        const unitId = 1
+        node.parallelUnitIdsAllowed = false
+        node.clienttype = 'tcp'
+        node.unitSendingAllowed = []
+        node.bufferCommandList.set(unitId, [{
+          callModbus: sinon.spy(),
+          msg: { queueUnitId: unitId },
+          cb: sinon.spy(),
+          cberr: sinon.spy()
+        }])
+        node.activateSending({ queueUnitId: unitId, payload: {} }).then(function () {
+          assert.deepStrictEqual(node.unitSendingAllowed, [unitId])
+          done()
+        }).catch(done)
+      })
+    })
+
+    it('should not duplicate unitSendingAllowed on re-arm when already pending (#574)', function (done) {
+      loadClient(done, function (node, done) {
+        const unitId = 2
+        node.parallelUnitIdsAllowed = false
+        node.clienttype = 'tcp'
+        node.unitSendingAllowed = [unitId]
+        node.bufferCommandList.set(unitId, [{
+          callModbus: sinon.spy(),
+          msg: {},
+          cb: sinon.spy(),
+          cberr: sinon.spy()
+        }])
+        node.activateSending({ queueUnitId: unitId, payload: {} }).then(function () {
+          assert.deepStrictEqual(node.unitSendingAllowed, [unitId])
+          done()
+        }).catch(done)
+      })
+    })
+
+    it('should drain all buffered commands for same unitId when parallelUnitIdsAllowed is false (#574)', function (done) {
+      const coreModbusQueue = require('../../src/core/modbus-queue-core')
+      loadClient(done, function (node, done) {
+        const unitId = 1
+        const callOrder = []
+        node.parallelUnitIdsAllowed = false
+        node.clienttype = 'tcp'
+        node.commandDelay = 0
+        node.serialSendingAllowed = true
+        node.unitSendingAllowed = []
+        coreModbusQueue.initQueue(node)
+
+        function makeCallModbus (seq) {
+          return function (n, msg, onSuccess) {
+            callOrder.push(seq)
+            n.activateSending(msg).then(function () {
+              onSuccess({ data: [seq] }, msg)
+            }).catch(function (err) {
+              done(err)
+            })
+          }
+        }
+
+        const pushes = [0, 1, 2].map(function (seq) {
+          return coreModbusQueue.pushToQueueByUnitId(
+            node,
+            makeCallModbus(seq),
+            { payload: { unitid: unitId, fc: 3, address: seq, quantity: 1 } },
+            sinon.spy(),
+            sinon.spy()
+          )
+        })
+
+        Promise.all(pushes).then(function () {
+          assert.strictEqual(node.unitSendingAllowed.length, 1, 'push-time dedupe keeps one pending slot')
+          assert.strictEqual(node.bufferCommandList.get(unitId).length, 3)
+
+          let steps = 0
+          function step () {
+            steps++
+            if (callOrder.length === 3 && coreModbusQueue.checkQueuesAreEmpty(node)) {
+              assert.deepStrictEqual(callOrder, [0, 1, 2])
+              assert.deepStrictEqual(node.unitSendingAllowed, [])
+              done()
+              return
+            }
+            if (steps > 20) {
+              done(new Error('drain stalled after ' + callOrder.length + ' calls; unitSendingAllowed=' +
+                JSON.stringify(node.unitSendingAllowed)))
+              return
+            }
+            node.sendingAllowed.set(unitId, true)
+            node.serialSendingAllowed = true
+            coreModbusQueue.dequeueCommand(node)
+            setTimeout(step, 15)
+          }
+          step()
+        }).catch(done)
+      })
+    })
+
+    it('should drain buffered commands across multiple unitIds sequentially (#574)', function (done) {
+      const coreModbusQueue = require('../../src/core/modbus-queue-core')
+      loadClient(done, function (node, done) {
+        const callOrder = []
+        node.parallelUnitIdsAllowed = false
+        node.clienttype = 'tcp'
+        node.serialSendingAllowed = true
+        node.unitSendingAllowed = []
+        coreModbusQueue.initQueue(node)
+
+        function makeCallModbus (label) {
+          return function (n, msg, onSuccess) {
+            callOrder.push(label)
+            n.activateSending(msg).then(function () {
+              onSuccess({ data: [1] }, msg)
+            }).catch(done)
+          }
+        }
+
+        Promise.all([
+          coreModbusQueue.pushToQueueByUnitId(node, makeCallModbus('u1a'), { payload: { unitid: 1, fc: 3, address: 0, quantity: 1 } }, sinon.spy(), sinon.spy()),
+          coreModbusQueue.pushToQueueByUnitId(node, makeCallModbus('u1b'), { payload: { unitid: 1, fc: 3, address: 1, quantity: 1 } }, sinon.spy(), sinon.spy()),
+          coreModbusQueue.pushToQueueByUnitId(node, makeCallModbus('u2a'), { payload: { unitid: 2, fc: 3, address: 0, quantity: 1 } }, sinon.spy(), sinon.spy()),
+          coreModbusQueue.pushToQueueByUnitId(node, makeCallModbus('u2b'), { payload: { unitid: 2, fc: 3, address: 1, quantity: 1 } }, sinon.spy(), sinon.spy())
+        ]).then(function () {
+          assert.deepStrictEqual(node.unitSendingAllowed, [1, 2])
+          let steps = 0
+          function step () {
+            steps++
+            if (callOrder.length === 4 && coreModbusQueue.checkQueuesAreEmpty(node)) {
+              assert.strictEqual(callOrder.filter(function (x) { return x.indexOf('u1') === 0 }).length, 2)
+              assert.strictEqual(callOrder.filter(function (x) { return x.indexOf('u2') === 0 }).length, 2)
+              done()
+              return
+            }
+            if (steps > 30) {
+              done(new Error('multi-unit drain stalled: ' + JSON.stringify(callOrder)))
+              return
+            }
+            ;[1, 2].forEach(function (id) { node.sendingAllowed.set(id, true) })
+            node.serialSendingAllowed = true
+            coreModbusQueue.dequeueCommand(node)
+            setTimeout(step, 15)
+          }
+          step()
+        }).catch(done)
+      })
+    })
   })
 })

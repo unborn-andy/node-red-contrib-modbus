@@ -174,6 +174,22 @@ describe('Core Client Settings Testing', function () {
       sinon.assert.match(cberr.firstCall.args[0].message, /address out of range/)
     })
 
+    it('should unlock via activateSendingOnFailure when node is passed and address is out of range', function (done) {
+      const msg = { payload: { fc: 3, address: 70000, quantity: 1 }, queueUnitId: 1 }
+      const cberr = sinon.spy()
+      const node = {
+        activateSending: sandbox.stub().resolves(),
+        stateService: { send: sandbox.spy() }
+      }
+      validateImpl(msg, 3, cberr, node)
+      setTimeout(function () {
+        sinon.assert.calledOnce(node.activateSending)
+        sinon.assert.calledOnce(cberr)
+        sinon.assert.calledWith(node.stateService.send, 'ACTIVATE')
+        done()
+      }, 20)
+    })
+
     it('should call cberr when address is -1', function () {
       const msg = { payload: { fc: 1, address: -1, quantity: 1 } }
       const cberr = sinon.spy()

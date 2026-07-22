@@ -618,19 +618,32 @@ module.exports = function (RED) {
     })
 
     node.activateSending = function (msg) {
-      node.sendingAllowed.set(msg.queueUnitId, true)
+      const unitId = msg.queueUnitId
+      node.sendingAllowed.set(unitId, true)
       coreModbusQueue.queueSerialUnlockCommand(node)
 
       return new Promise(
         function (resolve, reject) {
           try {
             if (node.bufferCommands) {
+              // Re-arm sequential drain when more work remains for this UnitId (#574).
+              // Push-time dedupe (FR-QUEUE-02) only keeps one pending slot; after
+              // shift()+send the UnitId must be scheduled again or the queue stalls.
+              const sequentialDrain = !node.parallelUnitIdsAllowed || node.clienttype === 'serial'
+              const remaining = node.bufferCommandList.get(unitId)
+              if (sequentialDrain &&
+                  coreModbusQueue.isValidUnitId(unitId) &&
+                  remaining && remaining.length > 0 &&
+                  !node.unitSendingAllowed.includes(unitId)) {
+                node.unitSendingAllowed.push(unitId)
+              }
+
               node.queueLog(JSON.stringify({
                 info: 'queue response activate sending',
                 queueLength: node.bufferCommandList.length,
-                sendingAllowed: node.sendingAllowed.get(msg.queueUnitId),
+                sendingAllowed: node.sendingAllowed.get(unitId),
                 serialSendingAllowed: node.serialSendingAllowed,
-                queueUnitId: msg.queueUnitId
+                queueUnitId: unitId
               }))
 
               if (coreModbusQueue.checkQueuesAreEmpty(node)) {
