@@ -1,3 +1,19 @@
+# Changelog
+
+All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+
+## [5.51.0](https://github.com/BiancoRoyal/node-red-contrib-modbus/compare/v5.50.1...v5.51.0) (2026-07-22)
+
+
+### Features
+
+* **test:** live TCP suites, CI fast/heavy gate, and metrics logging ([c2caf67](https://github.com/BiancoRoyal/node-red-contrib-modbus/commit/c2caf67f4f5fed6cdaacd38d660f6136c8785169))
+
+
+### Bug Fixes
+
+* **io-config:** close lineReader on reload and node close ([51404b5](https://github.com/BiancoRoyal/node-red-contrib-modbus/commit/51404b5e924a512b3d31e41a25a0644af247caa0))
+
 # [5.50.1](https://github.com/BiancoRoyal/node-red-contrib-modbus/compare/v5.50.0...v5.50.1) (2026-07-22)
 
 
@@ -498,6 +514,3 @@
 
 
 # 1.0.0 (2017-01-18)
-
-
-
