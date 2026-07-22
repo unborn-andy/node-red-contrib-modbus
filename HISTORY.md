@@ -1,11 +1,16 @@
 # Version History
 
-## Current (v5.50+)
+## Current (v5.60+)
 
 * **Node.js `>= 22`** required (`package.json` engines)
 * **Node-RED `>= 4`** required (`package.json` → `node-red.version`)
 * Runtime client stack: `@openp4nr/modbus-serial` · server: `jsmodbus` · FSM: `@xstate/fsm`
-* See [CHANGELOG.md](CHANGELOG.md) and [docs/LEARNING-PATH.md](docs/LEARNING-PATH.md)
+* Optional serial UI deps: `serialport` / `@serialport/list` **v13**
+* Support branch: `support/v5.60` · See [CHANGELOG.md](CHANGELOG.md) and [docs/LEARNING-PATH.md](docs/LEARNING-PATH.md)
+
+## Previous LTS tip (v5.50 → v5.51)
+
+* Tip tag `v5.51.0` on `support/v5.50` (serialport v12 era)
 
 ## Node-RED v3.x versions (historical — no longer the package minimum)
 

@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [5.60.0](https://github.com/BiancoRoyal/node-red-contrib-modbus/compare/v5.51.0...v5.60.0) (2026-07-22)
+
+
+### Features
+
+* **deps:** upgrade optional `serialport` / `@serialport/list` from v12 to **v13**
+* **deps:** bump `bson` (~7.3.1), `debug` (~4.4.3), `underscore` (~1.13.8 / CVE-2026-27601)
+
+
+### Notes
+
+* New LTS support line: `support/v5.60` (tip `v5.60.0`). Previous line remains `support/v5.50` at `v5.51.0`.
+* Serialport v13 may require a fresh native rebuild for local serial adapters (`npm rebuild serialport` if needed).
+
 ## [5.51.0](https://github.com/BiancoRoyal/node-red-contrib-modbus/compare/v5.50.1...v5.51.0) (2026-07-22)
 
 
