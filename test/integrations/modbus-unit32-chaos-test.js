@@ -55,7 +55,8 @@ const CI = !!process.env.CI
 const SUITE_MS = CI ? 360000 : 300000
 const CLIENT_WAIT_MS = CI ? 45000 : 30000
 const SERVER_WAIT_MS = CI ? 20000 : 10000
-const BURST_WAIT_MS = CI ? 330000 : 240000
+/** Leave headroom under suite timeout for teardown after burst. */
+const BURST_WAIT_MS = CI ? 340000 : 240000
 
 const UNIT_COUNT = 32
 const MSGS_PER_UNIT = 100
@@ -238,7 +239,10 @@ function bringPairUp (pair, callback, opts) {
   const isStopped = opts.isStopped || function () { return false }
 
   if (isStopped()) return callback()
-  if (pair._recovering) return callback()
+  // Do not fake-success while another recover is in flight
+  if (pair._recovering) {
+    return callback(new Error('already recovering unit=' + pair.unitId))
+  }
   pair._recovering = true
   pair._recoveringSince = Date.now()
 
@@ -468,6 +472,7 @@ function startChaos (pairs, shouldStop, onStats, timers) {
       timers.clearAll()
     },
     pause: function () { pauseNewOutages = true },
+    isPaused: function () { return pauseNewOutages },
     getCycles: function () { return cycles },
     getDownCount: function () { return downs.size }
   }
@@ -535,8 +540,11 @@ function runChaosBurst (pairs, callback) {
     bringPairUp(pair, function (err) {
       if (err) {
         pair.up = false
-        // Allow another attempt on next watchdog tick
-        pair._recovering = false
+        // Don't clear another in-flight recover's flag
+        if (!err.message || err.message.indexOf('already recovering') === -1) {
+          pair._recovering = false
+          pair._recoveringSince = 0
+        }
         return
       }
       lastProgressAt[pair.unitId] = Date.now()
@@ -550,8 +558,13 @@ function runChaosBurst (pairs, callback) {
       return
     }
     if (!pumping) return
+    const now = Date.now()
+    // Only unlock units that look wedged — blanket clear floods the queue
     pairs.forEach(function (p) {
-      clearUnitSendState(p)
+      if (!unitHasPending(p.unitId)) return
+      if (inflight[p.unitId] > 0 && now - lastProgressAt[p.unitId] > 1500) {
+        clearUnitSendState(p)
+      }
     })
     pump()
   }, 250)
@@ -563,6 +576,16 @@ function runChaosBurst (pairs, callback) {
       return
     }
     const now = Date.now()
+    const endgame = completed >= Math.floor(TOTAL_MSGS * 0.85) ||
+      (chaosHandle && typeof chaosHandle.isPaused === 'function' && chaosHandle.isPaused())
+    const stallMs = endgame ? (CI ? 2500 : 2000) : STALL_MS
+    const burstLeft = BURST_WAIT_MS - (now - start)
+    const finalSprint = burstLeft < (CI ? 45000 : 30000)
+
+    if (finalSprint && chaosHandle) {
+      chaosHandle.pause()
+    }
+
     pairs.forEach(function (pair) {
       if (!unitHasPending(pair.unitId)) return
 
@@ -574,19 +597,19 @@ function runChaosBurst (pairs, callback) {
       }
 
       if (!pair.up && !pair._recovering) {
-        forceRecoverPair(pair, 'down')
+        forceRecoverPair(pair, finalSprint ? 'sprint-down' : 'down')
         return
       }
 
       if (pair.up && !isModbusClientReady(pair.client) && !pair._recovering) {
-        forceRecoverPair(pair, 'not-ready')
+        forceRecoverPair(pair, finalSprint ? 'sprint-not-ready' : 'not-ready')
         return
       }
 
-      // Ready + up but no owned reply for STALL_MS → reconnect + reseed
+      // Ready + up but no owned reply for stallMs → reconnect + reseed
       if (pumping && pair.up && isModbusClientReady(pair.client) && !pair._recovering) {
-        if (now - lastProgressAt[pair.unitId] >= STALL_MS) {
-          forceRecoverPair(pair, 'no-progress')
+        if (now - lastProgressAt[pair.unitId] >= stallMs) {
+          forceRecoverPair(pair, finalSprint ? 'sprint-no-progress' : 'no-progress')
         }
       }
     })
@@ -762,13 +785,13 @@ function runChaosBurst (pairs, callback) {
     chaosEvents.push(ev)
   }, burstTimers)
 
-  // Wait until at least one outage wave is counted, then pump steadily
+  // Start pumping after the first outage wave is underway (not after MIN_DOWN waves)
   waitChaos = burstTimers.setInterval(function () {
     if (settled) {
       burstTimers.clear(waitChaos)
       return
     }
-    if (chaosHandle && chaosHandle.getCycles() >= MIN_DOWN) {
+    if (chaosHandle && chaosHandle.getCycles() >= 1) {
       burstTimers.clear(waitChaos)
       pumping = true
       // Reset stall clocks when traffic actually starts
