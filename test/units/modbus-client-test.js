@@ -39,6 +39,9 @@ describe('Client node Unit Testing', function () {
   })
 
   afterEach(function (done) {
+    try {
+      sinon.restore()
+    } catch (e) { /* ignore */ }
     helper.unload().then(function () {
       done()
     }).catch(function () {
@@ -311,12 +314,20 @@ describe('Client node Unit Testing', function () {
         const cb = sinon.spy()
         const cberr = sinon.spy()
 
-        modbusClientNode.emit('dynamicReconnect', msg, cb, cberr)
+        try {
+          modbusClientNode.emit('dynamicReconnect', msg, cb, cberr)
 
-        sinon.assert.calledWith(internalDebugSpy, 'Dynamic Reconnect Parameters ' + JSON.stringify(msg.payload))
-        sinon.assert.calledWith(setNewNodeSettingsStub, modbusClientNode, msg)
-        sinon.assert.calledWith(stateServiceSendStub, 'SWITCH')
-        done()
+          sinon.assert.calledWith(internalDebugSpy, 'Dynamic Reconnect Parameters ' + JSON.stringify(msg.payload))
+          sinon.assert.calledWith(setNewNodeSettingsStub, modbusClientNode, msg)
+          sinon.assert.calledWith(stateServiceSendStub, 'SWITCH')
+          done()
+        } catch (err) {
+          done(err)
+        } finally {
+          internalDebugSpy.restore()
+          setNewNodeSettingsStub.restore()
+          stateServiceSendStub.restore()
+        }
       })
     })
 
