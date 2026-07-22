@@ -28,10 +28,11 @@ helper.init(require.resolve('node-red'))
 
 const testFlows = require('./flows/modbus-queue-info-flows')
 const mbBasics = require('../../src/modbus-basics')
-const { withEphemeralPorts } = require('../helper/test-helper-extensions')
+const { withEphemeralPorts, muteAutoInjects, waitForLiveClientServer, onceDone } = require('../helper/test-helper-extensions')
 
 function loadFlow (nodes, flowTemplate, callback) {
   withEphemeralPorts(flowTemplate).then((flow) => {
+    muteAutoInjects(flow)
     helper.load(nodes, flow, callback)
   }).catch((err) => {
     throw err
@@ -39,6 +40,8 @@ function loadFlow (nodes, flowTemplate, callback) {
 }
 
 describe('Queue Info node Testing', function () {
+  this.timeout(process.env.CI ? 60000 : 30000)
+
   before(function (done) {
     helper.startServer(function () {
       done()
@@ -302,25 +305,99 @@ describe('Queue Info node Testing', function () {
       })
     })
 
-    it('simple flow with new reset inject should be loaded', function (done) {
+    it('simple flow with new reset inject should report queue state from live client', function (done) {
+      const finish = onceDone(done)
       loadFlow(testQueueInfoNodes, testFlows.testNewResetInjectShouldBeLoadedFlow, function () {
         const h1 = helper.getNode('h1')
-        h1.on('input', function () {
-          done()
-        })
         const queueNode = helper.getNode('5fffb0bc.0b8a5')
-        queueNode.receive({ payload: { resetQueue: true } })
+        const server = helper.getNode('445454e4.968564')
+        const client = helper.getNode('1e3ac4ea.86fa7b')
+
+        waitForLiveClientServer(server, client, function (readyErr) {
+          if (readyErr) return finish(readyErr)
+
+          h1.once('input', function (msg) {
+            try {
+              assert.ok(msg && msg.payload, 'expected queue-info payload')
+              assert.strictEqual(msg.payload.queueEnabled, true)
+              assert.ok(
+                msg.payload.queues != null || msg.payload.queue != null,
+                'expected queues or queue field from live client'
+              )
+              finish()
+            } catch (e) {
+              finish(e)
+            }
+          })
+          queueNode.receive({ payload: { resetQueue: true } })
+          setTimeout(function () {
+            finish(new Error('timeout waiting for queue-info reset payload'))
+          }, process.env.CI ? 10000 : 5000)
+        })
       })
     })
 
-    it('simple flow with reset function for queue', function (done) {
+    it('simple flow with reset function for queue should report queue state from live client', function (done) {
+      const finish = onceDone(done)
       loadFlow(testQueueInfoNodes, testFlows.testResetFunctionQueueFlow, function () {
         const h1 = helper.getNode('h1')
-        h1.on('input', function () {
-          done()
-        })
         const queueNode = helper.getNode('5fffb0bc.0b8a5')
-        queueNode.receive({ payload: { resetQueue: true } })
+        const server = helper.getNode('445454e4.968564')
+        const client = helper.getNode('1e3ac4ea.86fa7b')
+
+        waitForLiveClientServer(server, client, function (readyErr) {
+          if (readyErr) return finish(readyErr)
+
+          h1.once('input', function (msg) {
+            try {
+              assert.ok(msg && msg.payload, 'expected queue-info payload')
+              assert.strictEqual(msg.payload.queueEnabled, true)
+              assert.ok(
+                msg.payload.queues != null || msg.payload.queue != null,
+                'expected queues or queue field from live client'
+              )
+              finish()
+            } catch (e) {
+              finish(e)
+            }
+          })
+          queueNode.receive({ payload: { resetQueue: true } })
+          setTimeout(function () {
+            finish(new Error('timeout waiting for queue-info reset-function payload'))
+          }, process.env.CI ? 10000 : 5000)
+        })
+      })
+    })
+
+    it('reports queueEnabled against live client after connection', function (done) {
+      const finish = onceDone(done)
+      loadFlow(testQueueInfoNodes, testFlows.testShouldBeLoadedFlow, function () {
+        const queueNode = helper.getNode('ef5dad20.e97af')
+        const server = helper.getNode('389153e.cb648ac')
+        const client = helper.getNode('d4c76ff5.c424b8')
+
+        waitForLiveClientServer(server, client, function (readyErr) {
+          if (readyErr) return finish(readyErr)
+
+          const origSend = queueNode.send.bind(queueNode)
+          queueNode.send = function (msg) {
+            origSend(msg)
+            const out = Array.isArray(msg) ? msg[0] : msg
+            try {
+              assert.ok(out && out.payload)
+              assert.strictEqual(out.payload.queueEnabled, true)
+              assert.ok(out.payload.queues != null || out.payload.queue != null)
+              finish()
+            } catch (e) {
+              finish(e)
+            }
+          }
+
+          queueNode.receive({ payload: {} })
+          setTimeout(function () {
+            finish(new Error('timeout waiting for live queue-info report'))
+          }, process.env.CI ? 10000 : 5000)
+        })
       })
     })
 

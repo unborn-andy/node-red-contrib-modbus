@@ -10,6 +10,10 @@
 
 'use strict'
 
+const fs = require('fs')
+const os = require('os')
+const path = require('path')
+
 const nodeUnderTest = require('../../src/modbus-io-config.js')
 const readNode = require('../../src/modbus-read.js')
 const catchNode = require('@node-red/nodes/core/common/25-catch')
@@ -17,7 +21,6 @@ const injectNode = require('@node-red/nodes/core/common/20-inject')
 const functionNode = require('@node-red/nodes/core/function/10-function')
 const clientNode = require('../../src/modbus-client')
 const serverNode = require('../../src/modbus-server')
-const sinon = require('sinon')
 const chai = require('chai')
 const expect = chai.expect
 
@@ -26,10 +29,8 @@ helper.init(require.resolve('node-red'))
 
 const testIoConfigNodes = [catchNode, injectNode, functionNode, clientNode, serverNode, nodeUnderTest, readNode]
 
-const coreIO = require('../../src/core/modbus-io-core.js')
-
 describe('IO Config E2E Testing', function () {
-  let sinonStub
+  let tempIoFile
 
   before(function (done) {
     helper.startServer(function () {
@@ -40,11 +41,14 @@ describe('IO Config E2E Testing', function () {
   afterEach(function (done) {
     helper.unload().then(function () {
       done()
-    }).catch(function () {
-      done()
+    }).catch(function (err) {
+      done(err)
     }).finally(function () {
-      if (sinonStub) {
-        sinonStub.restore()
+      if (tempIoFile && fs.existsSync(tempIoFile)) {
+        try {
+          fs.unlinkSync(tempIoFile)
+        } catch (e) { /* ignore */ }
+        tempIoFile = null
       }
     })
   })
@@ -57,56 +61,98 @@ describe('IO Config E2E Testing', function () {
 
   describe('IO Node testing', function () {
     it('should handle end of lineReader', function (done) {
+      tempIoFile = path.join(os.tmpdir(), 'modbus-io-e2e-' + Date.now() + '.json')
+      const line = JSON.stringify({
+        name: 'iTemperature',
+        valueAddress: '%IW0'
+      })
+      fs.writeFileSync(tempIoFile, line + '\n', 'utf8')
+
       const flow = [
         {
           id: 'c1d2e3f4g5h6i7',
           type: 'modbus-io-config',
           name: 'ModbusIOConfig',
-          path: 'testpath',
+          path: tempIoFile,
           format: 'utf8',
           addressOffset: ''
         }
       ]
 
-      const mockConfigData = [{ key: 'value' }]
+      let settled = false
+      const finish = function (err) {
+        if (settled) {
+          return
+        }
+        settled = true
+        done(err)
+      }
 
-      sinonStub = sinon.stub(coreIO, 'LineByLineReader').callsFake(function (path) {
-        this.on = function (event, callback) {
-          if (event === 'line') {
-            callback(JSON.stringify(mockConfigData[0]))
-          } else if (event === 'end') {
-            callback()
+      helper.load(testIoConfigNodes, flow, function (err) {
+        if (err) {
+          finish(err)
+          return
+        }
+
+        const configNode = helper.getNode('c1d2e3f4g5h6i7')
+        if (!configNode) {
+          finish(new Error('modbus-io-config node not loaded'))
+          return
+        }
+
+        const onUpdated = function (configData) {
+          try {
+            expect(configNode.lastUpdatedAt).to.be.a('number')
+            expect(configData).to.be.an('array')
+            expect(configData).to.have.lengthOf(1)
+            expect(configData[0]).to.deep.include({
+              name: 'iTemperature',
+              valueAddress: '%IW0'
+            })
+            finish()
+          } catch (assertErr) {
+            finish(assertErr)
           }
         }
-        this.resume = () => { }
+
+        if (configNode.lastUpdatedAt != null && Array.isArray(configNode.configData) && configNode.configData.length) {
+          onUpdated(configNode.configData)
+          return
+        }
+
+        configNode.once('updatedConfig', onUpdated)
+
+        setTimeout(function () {
+          finish(new Error('timed out waiting for lineReader end / updatedConfig'))
+        }, 3000)
       })
+    })
 
-      // sinonDebugStub = sinon.spy(coreIO, 'internalDebug')
-      const warnSpy = sinon.spy()
-      const emitSpy = sinon.spy()
+    it('should warn and skip load when IO file is missing', function (done) {
+      const missingPath = path.join(os.tmpdir(), 'modbus-io-missing-' + Date.now() + '.json')
+      const flow = [
+        {
+          id: 'a1b2c3d4e5f6g7',
+          type: 'modbus-io-config',
+          name: 'MissingIO',
+          path: missingPath,
+          format: 'utf8',
+          addressOffset: ''
+        }
+      ]
 
-      helper.load(testIoConfigNodes, flow, function () {
-        const configNode = helper.getNode('c1d2e3f4g5h6i7')
-        configNode.warn = warnSpy
-        configNode.emit = emitSpy
-
-        const lineReader = new coreIO.LineByLineReader(configNode.path)
-        lineReader.on('line', () => { })
-        lineReader.on('end', () => { })
-
-        try {
-          /* eslint-disable no-unused-expressions */
-          expect(configNode.lastUpdatedAt).to.be.null
-          // expect(sinonDebugStub.calledWith('Read IO Done From File ' + configNode.path)).to.be.true
-          expect(warnSpy.calledOnce).to.be.false
-          expect(emitSpy.calledOnce).to.be.false
-          expect(emitSpy.calledWith('updatedConfig', configNode.configData)).to.be.false
-          done()
-        } catch (err) {
+      helper.load(testIoConfigNodes, flow, function (err) {
+        if (err) {
           done(err)
-        } finally {
-          coreIO.LineByLineReader.restore()
-          coreIO.internalDebug.restore()
+          return
+        }
+        try {
+          const configNode = helper.getNode('a1b2c3d4e5f6g7')
+          expect(configNode.lineReader).to.equal(undefined)
+          expect(configNode.lastUpdatedAt).to.equal(null)
+          done()
+        } catch (assertErr) {
+          done(assertErr)
         }
       })
     })

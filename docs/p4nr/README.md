@@ -45,6 +45,7 @@ Feature/Bug → Team 1 → Team 2 → GATE 1 → Team 3 → GATE 2 → PR/commit
 | `examples-learning-path` | GATE 1 APPROVE — examples 01–15 (package **5.50.0**) |
 | `shared-client-deregister-isolation` | GATE 1 APPROVE — fix #423/#487 shared-client STOP |
 | `queue-sequential-drain-rearm` | GATE 1 APPROVE — fix #574 Queue full / sequential drain |
+| `live-node-red-feature-matrix` | GATE 1 APPROVE — live helper+Modbus-Server matrix |
 
 ## OSS Notes
 

@@ -33,7 +33,8 @@ helper.init(require.resolve('node-red'))
 // require from ../../src/ — see test/units/modbus-client-test.js
 ```
 
-Dynamic ports: `test/helper/test-helper-extensions.js`
+Dynamic ports: `getPort` / `getPorts` / `withEphemeralPorts` in `test/helper/` (process-global allocator, mocha-parallel safe).
+Test metrics: Winston via `measure()` — enable with `MODBUS_TEST_LOG=info` (silent by default for CI dot mode). Production logging stays `debug` (`DEBUG=contribModbus*`).
 
 ## Server Node
 

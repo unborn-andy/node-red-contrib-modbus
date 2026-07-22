@@ -23,7 +23,70 @@ helper.init(require.resolve('node-red'))
 const testFlows = require('./flows/modbus-flex-connector-flows')
 const mBasics = require('../../src/modbus-basics')
 const _ = require('underscore')
-const { getPort } = require('../helper/test-helper-extensions')
+const {
+  getPort,
+  releasePort,
+  waitForModbusServerListening,
+  waitForModbusClientActive,
+  onceDone
+} = require('../helper/test-helper-extensions')
+
+const CI_TEST_TIMEOUT_MS = process.env.CI ? 30000 : 15000
+const CLIENT_ACTIVE_WAIT_MS = process.env.CI ? 20000 : 8000
+const SERVER_LISTEN_WAIT_MS = process.env.CI ? 10000 : 5000
+const SETTINGS_WAIT_MS = process.env.CI ? 5000 : 2000
+
+let flowSeq = 0
+
+/** Deep-clone flow and uniquify ids (avoids collisions under full-suite / nyc coverage). */
+function prepareFlow (flowTemplate) {
+  const flow = JSON.parse(JSON.stringify(flowTemplate))
+  const suffix = '-' + Date.now().toString(36) + '-' + (++flowSeq)
+  const idMap = {}
+
+  for (const node of flow) {
+    if (!node || !node.id) continue
+    idMap[node.id] = node.id + suffix
+  }
+  for (const node of flow) {
+    if (!node) continue
+    if (node.id && idMap[node.id]) node.id = idMap[node.id]
+    if (node.z && idMap[node.z]) node.z = idMap[node.z]
+    if (node.server && idMap[node.server]) node.server = idMap[node.server]
+    if (Array.isArray(node.wires)) {
+      node.wires = node.wires.map(function (wires) {
+        return (wires || []).map(function (id) { return idMap[id] || id })
+      })
+    }
+  }
+  return { flow, idMap }
+}
+
+function mappedId (idMap, originalId) {
+  return idMap[originalId] || originalId
+}
+
+function waitUntil (predicate, maxWaitMs, callback) {
+  const deadline = Date.now() + maxWaitMs
+  const poll = function () {
+    let ok = false
+    try { ok = !!predicate() } catch (e) { ok = false }
+    if (ok) return callback()
+    if (Date.now() >= deadline) {
+      return callback(new Error('condition not met within ' + maxWaitMs + 'ms'))
+    }
+    setTimeout(poll, 25)
+  }
+  poll()
+}
+
+function kickClientReconnectIfStuck (clientNode) {
+  const st = clientNode && clientNode.actualServiceState && clientNode.actualServiceState.value
+  // SWITCH is ignored in reconnecting/broken — kick INIT so new settings are used
+  if (st === 'reconnecting' || st === 'broken' || st === 'failed') {
+    clientNode.stateService.send('INIT')
+  }
+}
 
 describe('Flex Connector node Unit Testing', function () {
   before(function (done) {
@@ -57,49 +120,101 @@ describe('Flex Connector node Unit Testing', function () {
     })
 
     it('should change the TCP-Port of the client from 7522 to 8522', function (done) {
-      const flow = Array.from(testFlows.testShouldChangeTcpPortFlow)
+      this.timeout(CI_TEST_TIMEOUT_MS)
+      const finish = onceDone(done)
+      const prepared = prepareFlow(testFlows.testShouldChangeTcpPortFlow)
+      const flow = prepared.flow
+      const idMap = prepared.idMap
+      let allocatedPort
 
       getPort().then((port) => {
-        flow[1].serverPort = port
+        allocatedPort = port
+        const serverCfg = flow.find(function (n) { return n.type === 'modbus-server' })
+        const clientCfg = flow.find(function (n) { return n.type === 'modbus-client' })
+        serverCfg.serverPort = port
+        // Client starts on a wrong port until Flex-Connector switches it.
+        clientCfg.tcpPort = 7522
 
         helper.load(testFlexConnectorNodes, flow, function () {
-          const modbusNode = helper.getNode('40ddaabb.fd44d4')
-          const clientNode = helper.getNode('2a253153.fae3ce')
+          const modbusNode = helper.getNode(mappedId(idMap, '40ddaabb.fd44d4'))
+          const clientNode = helper.getNode(mappedId(idMap, '2a253153.fae3ce'))
+          const serverNode = helper.getNode(mappedId(idMap, '445454e4.968564'))
           modbusNode.should.have.property('name', 'FlexConnector')
           modbusNode.should.have.property('emptyQueue', true)
+          modbusNode.server.should.equal(clientNode)
 
-          clientNode.on('mbconnected', () => {
-            if (clientNode && clientNode.tcpPort === port) {
-              done()
+          waitForModbusServerListening(serverNode, function (listenErr) {
+            if (listenErr) {
+              if (allocatedPort) releasePort(allocatedPort)
+              return finish(listenErr)
             }
-          })
 
-          setTimeout(function () {
-            modbusNode.receive({ payload: { connectorType: 'TCP', tcpHost: '127.0.0.1', tcpPort: port } })
-          }, 1000)
+            modbusNode.receive({
+              payload: {
+                connectorType: 'TCP',
+                tcpHost: '127.0.0.1',
+                tcpPort: port
+              }
+            })
+
+            waitUntil(function () {
+              return Number(clientNode.tcpPort) === Number(port)
+            }, SETTINGS_WAIT_MS, function (settingsErr) {
+              if (settingsErr) {
+                if (allocatedPort) releasePort(allocatedPort)
+                return finish(new Error(
+                  'Flex-Connector did not apply tcpPort via dynamicReconnect: ' + settingsErr.message +
+                  ' (tcpPort=' + clientNode.tcpPort + ', expected=' + port + ')'
+                ))
+              }
+
+              kickClientReconnectIfStuck(clientNode)
+
+              waitForModbusClientActive(clientNode, function (activeErr) {
+                if (allocatedPort) releasePort(allocatedPort)
+                if (activeErr) return finish(activeErr)
+                Number(clientNode.tcpPort).should.equal(Number(port))
+                finish()
+              }, CLIENT_ACTIVE_WAIT_MS)
+            })
+          }, SERVER_LISTEN_WAIT_MS)
         })
-      })
+      }).catch(finish)
     })
 
     it('should change the Serial-Port of the client from /dev/ttyUSB to /dev/ttyUSB0', function (done) {
-      helper.load(testFlexConnectorNodes, testFlows.testShouldChangeSerialPortFlow, function () {
-        const modbusNode = helper.getNode('40ddaabb.fd44d4')
-        const clientNode = helper.getNode('2a253153.fae3ef')
+      this.timeout(CI_TEST_TIMEOUT_MS)
+      const finish = onceDone(done)
+      const prepared = prepareFlow(testFlows.testShouldChangeSerialPortFlow)
+      const flow = prepared.flow
+      const idMap = prepared.idMap
+
+      helper.load(testFlexConnectorNodes, flow, function () {
+        const modbusNode = helper.getNode(mappedId(idMap, '40ddaabb.fd44d4'))
+        const clientNode = helper.getNode(mappedId(idMap, '2a253153.fae3ef'))
         modbusNode.should.have.property('name', 'FlexConnector')
         modbusNode.should.have.property('emptyQueue', true)
-        setTimeout(function () {
-          modbusNode.receive({
-            payload: {
-              connectorType: 'SERIAL',
-              serialPort: '/dev/ttyUSB0',
-              serialBaudrate: '9600'
-            }
-          })
-        }, 1000)
-        clientNode.on('mbinit', () => {
-          if (clientNode && clientNode.serialBaudrate === 9600 && clientNode.serialPort === '/dev/ttyUSB0') {
-            done()
+        modbusNode.server.should.equal(clientNode)
+
+        // No real serial device in CI — assert connector applies settings.
+        modbusNode.receive({
+          payload: {
+            connectorType: 'SERIAL',
+            serialPort: '/dev/ttyUSB0',
+            serialBaudrate: '9600'
           }
+        })
+
+        waitUntil(function () {
+          return clientNode.serialPort === '/dev/ttyUSB0' && Number(clientNode.serialBaudrate) === 9600
+        }, SETTINGS_WAIT_MS, function (err) {
+          if (err) {
+            return finish(new Error(
+              'Flex-Connector did not apply serial settings: ' + err.message +
+              ' (serialPort=' + clientNode.serialPort + ', baud=' + clientNode.serialBaudrate + ')'
+            ))
+          }
+          finish()
         })
       })
     })

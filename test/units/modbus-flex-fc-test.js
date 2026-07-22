@@ -24,7 +24,12 @@ helper.init(require.resolve('node-red'), {
 })
 
 const testFlows = require('./flows/modbus-flex-fc-flows')
-const { withEphemeralPorts } = require('../helper/test-helper-extensions')
+const {
+  withEphemeralPorts,
+  waitForLiveClientServer,
+  waitForHelperModbusExchange,
+  onceDone
+} = require('../helper/test-helper-extensions')
 
 function loadFlow (nodes, flowTemplate, callback) {
   withEphemeralPorts(flowTemplate).then((flow) => {
@@ -35,6 +40,8 @@ function loadFlow (nodes, flowTemplate, callback) {
 }
 
 describe('modbus flex fc unit test', function () {
+  this.timeout(process.env.CI ? 60000 : 30000)
+
   before(function (done) {
     helper.startServer(function () {
       done()
@@ -150,28 +157,35 @@ describe('modbus flex fc unit test', function () {
     })
   })
 
-  it('a flex-fc-node which is ready and active whom received a well formed message will try to communicate with the server', function (done) {
+  it('a flex-fc-node which is ready and active whom received a well formed message will exchange data with the server', function (done) {
+    const finish = onceDone(done)
     loadFlow(testFlexFcNodes, testFlows.testReadCoilMode, function () {
       const node = helper.getNode('d975b1203f71a3b5')
       const client = helper.getNode('5c2b693859e05456')
+      const server = helper.getNode('c77fdcf307244a2f')
+      const helperOut = helper.getNode('29dc12925bb8e2d4')
 
-      node.environmentVerbosity = true
-      // let mockVerboseWarnMessage = ''
-      // node.warn = function (message) { mockVerboseWarnMessage = message }
+      waitForLiveClientServer(server, client, function (readyErr) {
+        if (readyErr) return finish(readyErr)
 
-      node.isNotReadyForInput = function () { return false }
-      node.isInactive = function () { return false }
+        waitForHelperModbusExchange(helperOut, function (exErr) {
+          if (exErr) return finish(exErr)
+          finish()
+        }, {
+          timeoutMessage: 'timeout waiting for flex-fc Modbus response from live server'
+        })
 
-      node.onModbusReadDone = function () { } // TODO: Stub this out!
-      node.onModbusReadError = function () { } // TODO: Stub this one as well!
-
-      client.isInactive = function () { return false }
-
-      node.receive({
-        topic: 'customFc',
-        payload: { unitid: 0x01, fc: 0x01, requestCard: [0x00], responseCard: [0x00] }
+        // Trigger using the node’s configured FC map (FC4 input registers in this fixture)
+        node.receive({
+          topic: 'customFc',
+          payload: {
+            unitid: 1,
+            fc: 0x04,
+            requestCard: node.requestCard,
+            responseCard: node.responseCard
+          }
+        })
       })
-      done()
     })
   })
 

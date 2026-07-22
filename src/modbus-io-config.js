@@ -61,6 +61,7 @@ module.exports = function (RED) {
 
         node.lineReader.on('error', function (err) {
           coreIO.internalDebug(err.message)
+          node.warn('Modbus IO File Read Error: ' + err.message)
         })
 
         node.lineReader.on('line', function (line) {
@@ -101,7 +102,16 @@ module.exports = function (RED) {
           coreIO.internalDebug('Reload IO File ' + node.path)
           node.configData = []
           delete node.lastUpdatedAt
-          node.lineReader.removeAllListeners()
+          try {
+            if (node.lineReader) {
+              node.lineReader.removeAllListeners()
+              if (typeof node.lineReader.close === 'function') {
+                node.lineReader.close()
+              }
+            }
+          } catch (err) {
+            coreIO.internalDebug('IO File reload close error: ' + err.message)
+          }
           node.lineReader = new coreIO.LineByLineReader(node.path)
           setLineReaderEvents()
           coreIO.internalDebug('Reloading IO File Started For ' + node.path)
@@ -111,10 +121,22 @@ module.exports = function (RED) {
 
     node.on('close', function (done) {
       if (node.path) {
-        fs.unwatchFile(node.path)
+        try {
+          fs.unwatchFile(node.path)
+        } catch (err) {
+          coreIO.internalDebug('IO File unwatch error: ' + err.message)
+        }
       }
       if (node.lineReader) {
-        node.lineReader.removeAllListeners()
+        try {
+          node.lineReader.removeAllListeners()
+          if (typeof node.lineReader.close === 'function') {
+            node.lineReader.close()
+          }
+        } catch (err) {
+          coreIO.internalDebug('IO File close error: ' + err.message)
+        }
+        node.lineReader = null
       }
       node.removeAllListeners()
       done()

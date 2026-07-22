@@ -44,6 +44,7 @@ describe('Flex Sequencer node Testing', function () {
   })
 
   afterEach(function (done) {
+    sinon.restore()
     helper.unload().then(function () {
       done()
     }).catch(function () {
@@ -87,7 +88,6 @@ describe('Flex Sequencer node Testing', function () {
 
     it('should be inactive if message empty', function (done) {
       const flow = Array.from(testFlows.testNodeWithServerFlow)
-      flow[2].serverPort = '50201'
       loadFlow(testFlexSequencerNodes, flow, function () {
         const modbusClientNode = helper.getNode('92e7bf63.2efd7')
         setTimeout(() => {
@@ -298,10 +298,15 @@ describe('Flex Sequencer node Testing', function () {
         const resp = { data: [1, 2, 3], someOtherData: 'test' }
         const msg = { payload: 'test' }
         const setNodeStatusToStub = sinon.stub(mBasics, 'setNodeStatusTo')
-        flexSequencerNode.onModbusReadDone(resp, msg)
-        sinon.assert.calledWith(setNodeStatusToStub, 'reading done', flexSequencerNode)
-
-        done()
+        try {
+          flexSequencerNode.onModbusReadDone(resp, msg)
+          sinon.assert.calledWith(setNodeStatusToStub, 'reading done', flexSequencerNode)
+          done()
+        } catch (err) {
+          done(err)
+        } finally {
+          setNodeStatusToStub.restore()
+        }
       })
     })
   })

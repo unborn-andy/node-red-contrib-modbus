@@ -17,6 +17,10 @@ helper.init(require.resolve('node-red'))
 describe('Modbus Node basics Suite', function () {
   const basic = require('../../src/modbus-basics')
 
+  afterEach(function () {
+    sinon.restore()
+  })
+
   function checkStatus (statusProperty, fill, shape, text) {
     assert.strict.equal(statusProperty.fill, fill)
     assert.strict.equal(statusProperty.shape, shape)
@@ -149,12 +153,12 @@ describe('Modbus Node basics Suite', function () {
       const modbusClient = {}
       const err = { message: 'FSM Not Ready To Reconnect' }
       const setNodeStatusTo = sinon.stub(basic, 'setNodeStatusTo')
-
-      basic.setModbusError(node, modbusClient, err, null)
-
-      assert(setNodeStatusTo.calledOnceWithExactly('not ready to reconnect', node))
-
-      setNodeStatusTo.restore()
+      try {
+        basic.setModbusError(node, modbusClient, err, null)
+        assert(setNodeStatusTo.calledOnceWithExactly('not ready to reconnect', node))
+      } finally {
+        setNodeStatusTo.restore()
+      }
     })
 
     it('should set node status to blue and dot with text "waiting ..." when statusValue is "waiting"', () => {

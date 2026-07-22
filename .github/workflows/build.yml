@@ -14,6 +14,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Chaos + FSM + load suites need room; hang must fail the job, not burn the runner.
+    timeout-minutes: 45
     strategy:
       matrix:
         node: [22, 24]

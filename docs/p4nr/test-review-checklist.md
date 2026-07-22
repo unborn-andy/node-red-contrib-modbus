@@ -2,6 +2,20 @@
 
 Use for changes under `test/` in node-red-contrib-modbus v5 OSS.
 
+## Live vs theatre
+
+Three layers:
+
+1. **Core / sinon** (`test/core/`) — no Node-RED deploy
+2. **Helper unit** (`test/units/`, some `test/e2e/`) — real `helper.load`, often stubs or status-only
+3. **Live Modbus** (`test/integrations/`) — `helper` + ephemeral `Modbus-Server` + `waitForModbusClientActive` + assert `msg.payload`
+
+For production-shaped bugs (queue drain, shared client), prefer **layer 3**.
+Run: `npm run test:integrations` and `npx mocha './test/e2e/modbus-tcp-live-e2e-test.js'`.
+
+**Do not** leave real TCP E2E cases as `it.skip` / `#test-debt-e2e`. Fix ports + waits instead.
+Serial hardware stays out of CI; TCP covers the Modbus stack.
+
 ## Behaviour
 
 - [ ] Asserts **production code** (module under test), not local stub objects never wired in

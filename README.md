@@ -17,7 +17,7 @@
 
 [![nodemodbus64](images/modbus-icon64.png)](https://www.npmjs.com/package/node-red-contrib-modbus)
 
-**Public LTS line:** **v5.x** (current: **5.50.0**) · License **BSD-3-Clause** · Repo: [GitHub][12]
+**Public LTS line:** **v5.x** (current: **5.60.0**) · License **BSD-3-Clause** · Repo: [GitHub][12]
 
 If you like this package, please **give us a star on [GitHub][12]**.
 
