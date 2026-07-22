@@ -23,7 +23,17 @@ helper.init(require.resolve('node-red'))
 const testFlows = require('./flows/modbus-flex-connector-flows')
 const mBasics = require('../../src/modbus-basics')
 const _ = require('underscore')
-const { getPort } = require('../helper/test-helper-extensions')
+const {
+  getPort,
+  releasePort,
+  waitForModbusServerListening,
+  waitForModbusClientActive,
+  onceDone
+} = require('../helper/test-helper-extensions')
+
+const CI_TEST_TIMEOUT_MS = process.env.CI ? 30000 : 15000
+const CLIENT_ACTIVE_WAIT_MS = process.env.CI ? 20000 : 8000
+const SERVER_LISTEN_WAIT_MS = process.env.CI ? 10000 : 5000
 
 describe('Flex Connector node Unit Testing', function () {
   before(function (done) {
@@ -57,50 +67,77 @@ describe('Flex Connector node Unit Testing', function () {
     })
 
     it('should change the TCP-Port of the client from 7522 to 8522', function (done) {
+      this.timeout(CI_TEST_TIMEOUT_MS)
+      const finish = onceDone(done)
       const flow = Array.from(testFlows.testShouldChangeTcpPortFlow)
+      let allocatedPort
 
       getPort().then((port) => {
+        allocatedPort = port
         flow[1].serverPort = port
+        // Client fixture stays on 7522 until Flex-Connector switches it.
 
         helper.load(testFlexConnectorNodes, flow, function () {
           const modbusNode = helper.getNode('40ddaabb.fd44d4')
           const clientNode = helper.getNode('2a253153.fae3ce')
+          const serverNode = helper.getNode('445454e4.968564')
           modbusNode.should.have.property('name', 'FlexConnector')
           modbusNode.should.have.property('emptyQueue', true)
 
-          clientNode.on('mbconnected', () => {
-            if (clientNode && clientNode.tcpPort === port) {
-              done()
+          waitForModbusServerListening(serverNode, function (listenErr) {
+            if (listenErr) {
+              if (allocatedPort) releasePort(allocatedPort)
+              return finish(listenErr)
             }
-          })
 
-          setTimeout(function () {
-            modbusNode.receive({ payload: { connectorType: 'TCP', tcpHost: '127.0.0.1', tcpPort: port } })
-          }, 1000)
+            modbusNode.receive({
+              payload: {
+                connectorType: 'TCP',
+                tcpHost: '127.0.0.1',
+                tcpPort: port
+              }
+            })
+
+            // dynamicReconnect applies settings synchronously before SWITCH
+            Number(clientNode.tcpPort).should.equal(Number(port))
+
+            waitForModbusClientActive(clientNode, function (activeErr) {
+              if (allocatedPort) releasePort(allocatedPort)
+              if (activeErr) return finish(activeErr)
+              Number(clientNode.tcpPort).should.equal(Number(port))
+              finish()
+            }, CLIENT_ACTIVE_WAIT_MS)
+          }, SERVER_LISTEN_WAIT_MS)
         })
-      })
+      }).catch(finish)
     })
 
     it('should change the Serial-Port of the client from /dev/ttyUSB to /dev/ttyUSB0', function (done) {
+      this.timeout(CI_TEST_TIMEOUT_MS)
+      const finish = onceDone(done)
+
       helper.load(testFlexConnectorNodes, testFlows.testShouldChangeSerialPortFlow, function () {
         const modbusNode = helper.getNode('40ddaabb.fd44d4')
         const clientNode = helper.getNode('2a253153.fae3ef')
         modbusNode.should.have.property('name', 'FlexConnector')
         modbusNode.should.have.property('emptyQueue', true)
-        setTimeout(function () {
-          modbusNode.receive({
-            payload: {
-              connectorType: 'SERIAL',
-              serialPort: '/dev/ttyUSB0',
-              serialBaudrate: '9600'
-            }
-          })
-        }, 1000)
-        clientNode.on('mbinit', () => {
-          if (clientNode && clientNode.serialBaudrate === 9600 && clientNode.serialPort === '/dev/ttyUSB0') {
-            done()
+
+        // No real serial device in CI — assert connector applies settings sync.
+        modbusNode.receive({
+          payload: {
+            connectorType: 'SERIAL',
+            serialPort: '/dev/ttyUSB0',
+            serialBaudrate: '9600'
           }
         })
+
+        try {
+          clientNode.serialPort.should.equal('/dev/ttyUSB0')
+          Number(clientNode.serialBaudrate).should.equal(9600)
+          finish()
+        } catch (err) {
+          finish(err)
+        }
       })
     })
 
